@@ -429,4 +429,257 @@ class ExampleTest extends TestCase
             'mensaje' => 'Token de autenticacion requerido.',
         ]);
     }
+
+    public function test_teacher_assignment_creation_requires_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/asignaciones/docente-materia-grupo', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_assignments_by_teacher_require_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/asignaciones/docente/1');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_assignment_deactivation_requires_authentication_token(): void
+    {
+        $response = $this->deleteJson('/api/v1/asignaciones/1');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_active_schedule_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/asistencia-docente/horario-activo');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_entry_attendance_requires_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/asistencia-docente/marcar-entrada');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_exit_attendance_requires_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/asistencia-docente/marcar-salida');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_attendance_list_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/asistencia-docente');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_absence_generation_requires_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/asistencia-docente/generar-faltas');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_attendance_by_teacher_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/asistencia-docente/docente/1');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_student_active_schedule_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/asistencia-alumno/horario-activo');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_student_attendance_mark_requires_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/asistencia-alumno/marcar');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_register_student_attendance_requires_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/asistencia-alumno/docente/registrar', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_student_automatic_absence_generation_requires_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/asistencia-alumno/generar-faltas');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_my_student_attendance_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/asistencia-alumno/mis-asistencias');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_student_attendance_list_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/asistencia-alumno/docente/mis-alumnos');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_student_attendance_admin_list_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/asistencia-alumno');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_exams_list_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/examenes');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_exam_creation_requires_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/examenes', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_exam_subjects_require_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/examenes/1/materias', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_exam_questions_require_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/examenes/1/preguntas', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_question_options_require_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/preguntas/1/opciones', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_exam_enable_requires_authentication_token(): void
+    {
+        $response = $this->patchJson('/api/v1/examenes/1/habilitar');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_exam_disable_requires_authentication_token(): void
+    {
+        $response = $this->patchJson('/api/v1/examenes/1/deshabilitar');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
 }

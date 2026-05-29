@@ -8,8 +8,12 @@ use App\Http\Controllers\Api\ApplicantDocumentController;
 use App\Http\Controllers\Api\AcademicManagementController;
 use App\Http\Controllers\Api\ClassroomGroupController;
 use App\Http\Controllers\Api\ClassScheduleController;
+use App\Http\Controllers\Api\ExamController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\ScheduleCatalogController;
+use App\Http\Controllers\Api\StudentAttendanceController;
+use App\Http\Controllers\Api\TeacherAssignmentController;
+use App\Http\Controllers\Api\TeacherAttendanceController;
 use App\Http\Controllers\Api\TeacherController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
@@ -102,6 +106,24 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/horarios', [ClassScheduleController::class, 'index']);
         Route::post('/horarios', [ClassScheduleController::class, 'store']);
+
+        Route::post('/asignaciones/docente-materia-grupo', [TeacherAssignmentController::class, 'store']);
+        Route::get('/asignaciones/docente/{id}', [TeacherAssignmentController::class, 'byTeacher'])->whereNumber('id');
+        Route::get('/asignaciones/grupo/{id}', [TeacherAssignmentController::class, 'byGroup'])->whereNumber('id');
+        Route::get('/asignaciones/materia/{id}', [TeacherAssignmentController::class, 'bySubject'])->whereNumber('id');
+        Route::delete('/asignaciones/{id}', [TeacherAssignmentController::class, 'destroy'])->whereNumber('id');
+
+        Route::get('/asistencia-docente', [TeacherAttendanceController::class, 'index']);
+        Route::get('/asistencia-docente/docente/{id}', [TeacherAttendanceController::class, 'byTeacher'])->whereNumber('id');
+        Route::post('/asistencia-docente/generar-faltas', [TeacherAttendanceController::class, 'generateAbsences']);
+
+        Route::get('/examenes', [ExamController::class, 'index']);
+        Route::post('/examenes', [ExamController::class, 'store']);
+        Route::post('/examenes/{id}/materias', [ExamController::class, 'subjects'])->whereNumber('id');
+        Route::post('/examenes/{id}/preguntas', [ExamController::class, 'question'])->whereNumber('id');
+        Route::patch('/examenes/{id}/habilitar', [ExamController::class, 'enable'])->whereNumber('id');
+        Route::patch('/examenes/{id}/deshabilitar', [ExamController::class, 'disable'])->whereNumber('id');
+        Route::post('/preguntas/{id}/opciones', [ExamController::class, 'options'])->whereNumber('id');
     });
 
     Route::middleware(['auth.internal', 'role:administrador,docente'])
@@ -111,6 +133,28 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware(['auth.internal', 'role:administrador,alumno'])
         ->get('/horarios/alumno/{id}', [ClassScheduleController::class, 'studentSchedules'])
         ->whereNumber('id');
+
+    Route::middleware(['auth.internal', 'role:docente'])->prefix('asistencia-docente')->group(function (): void {
+        Route::get('/horario-activo', [TeacherAttendanceController::class, 'activeSchedule']);
+        Route::post('/marcar-entrada', [TeacherAttendanceController::class, 'markEntry']);
+        Route::post('/marcar-salida', [TeacherAttendanceController::class, 'markExit']);
+    });
+
+    Route::middleware(['auth.internal', 'role:alumno'])->prefix('asistencia-alumno')->group(function (): void {
+        Route::get('/horario-activo', [StudentAttendanceController::class, 'activeSchedule']);
+        Route::post('/marcar', [StudentAttendanceController::class, 'mark']);
+        Route::get('/mis-asistencias', [StudentAttendanceController::class, 'myAttendance']);
+    });
+
+    Route::middleware(['auth.internal', 'role:docente'])->prefix('asistencia-alumno/docente')->group(function (): void {
+        Route::post('/registrar', [StudentAttendanceController::class, 'registerByTeacher']);
+        Route::get('/mis-alumnos', [StudentAttendanceController::class, 'teacherStudents']);
+    });
+
+    Route::middleware(['auth.internal', 'role:administrador'])->prefix('asistencia-alumno')->group(function (): void {
+        Route::get('/', [StudentAttendanceController::class, 'index']);
+        Route::post('/generar-faltas', [StudentAttendanceController::class, 'generateAbsences']);
+    });
 });
 
 Route::any('{fallbackPlaceholder}', function () {
