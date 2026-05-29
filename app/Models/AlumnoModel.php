@@ -36,4 +36,14 @@ class AlumnoModel extends Model
     {
         return $this->hasMany(GrupoAlumnoModel::class, 'alumno_id');
     }
+
+    public function notasParciales(): HasMany
+    {
+        return $this->hasMany(NotaParcialModel::class, 'alumno_id');
+    }
+
+    public function promediosFinales(): HasMany
+    {
+        return $this->hasMany(PromedioFinalModel::class, 'alumno_id');
+    }
 }

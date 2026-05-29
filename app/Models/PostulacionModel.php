@@ -11,6 +11,17 @@ class PostulacionModel extends Model
 
     public $timestamps = false;
 
+    protected $casts = [
+        'promedio_final' => 'decimal:2',
+        'orden_prioridad' => 'integer',
+        'asignado_en' => 'datetime',
+    ];
+
+    public function postulante(): BelongsTo
+    {
+        return $this->belongsTo(PostulanteModel::class, 'postulante_id');
+    }
+
     public function primeraCarrera(): BelongsTo
     {
         return $this->belongsTo(CarreraModel::class, 'primera_carrera_id');

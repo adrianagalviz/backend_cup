@@ -34,4 +34,9 @@ class ExamenModel extends Model
     {
         return $this->hasMany(PreguntaModel::class, 'examen_id');
     }
+
+    public function intentos(): HasMany
+    {
+        return $this->hasMany(IntentoExamenModel::class, 'examen_id');
+    }
 }

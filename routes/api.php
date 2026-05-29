@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AdmissionController;
+use App\Http\Controllers\Api\BulkLoadController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\ApplicantController;
 use App\Http\Controllers\Api\ApplicantConversionController;
@@ -8,10 +10,14 @@ use App\Http\Controllers\Api\ApplicantDocumentController;
 use App\Http\Controllers\Api\AcademicManagementController;
 use App\Http\Controllers\Api\ClassroomGroupController;
 use App\Http\Controllers\Api\ClassScheduleController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExamController;
+use App\Http\Controllers\Api\GradeAverageController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\ScheduleCatalogController;
 use App\Http\Controllers\Api\StudentAttendanceController;
+use App\Http\Controllers\Api\StudentExamController;
 use App\Http\Controllers\Api\TeacherAssignmentController;
 use App\Http\Controllers\Api\TeacherAttendanceController;
 use App\Http\Controllers\Api\TeacherController;
@@ -124,6 +130,33 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/examenes/{id}/habilitar', [ExamController::class, 'enable'])->whereNumber('id');
         Route::patch('/examenes/{id}/deshabilitar', [ExamController::class, 'disable'])->whereNumber('id');
         Route::post('/preguntas/{id}/opciones', [ExamController::class, 'options'])->whereNumber('id');
+
+        Route::post('/promedios/calcular', [GradeAverageController::class, 'calculate']);
+
+        Route::post('/admisiones/asignar-carreras', [AdmissionController::class, 'assignCareers']);
+
+        Route::get('/reportes/postulantes', [ReportController::class, 'applicants']);
+        Route::get('/reportes/aprobados', [ReportController::class, 'approved']);
+        Route::get('/reportes/reprobados', [ReportController::class, 'failed']);
+        Route::get('/reportes/promedios', [ReportController::class, 'averages']);
+        Route::get('/reportes/grupos', [ReportController::class, 'groups']);
+        Route::get('/reportes/estadisticas-materia', [ReportController::class, 'subjectStatistics']);
+        Route::get('/reportes/docentes-grupos', [ReportController::class, 'teachersGroups']);
+        Route::get('/reportes/grupos-mayor-aprobados', [ReportController::class, 'groupsMostApproved']);
+        Route::get('/reportes/asistencia-docentes', [ReportController::class, 'teacherAttendance']);
+        Route::get('/reportes/asistencia-alumnos', [ReportController::class, 'studentAttendance']);
+        Route::post('/reportes/comando-voz', [ReportController::class, 'voiceCommand']);
+        Route::get('/reportes/{tipo}/exportar', [ReportController::class, 'export']);
+
+        Route::get('/cargas', [BulkLoadController::class, 'index']);
+        Route::post('/cargas/csv', [BulkLoadController::class, 'csv']);
+        Route::post('/cargas/excel', [BulkLoadController::class, 'excel']);
+        Route::get('/cargas/{id}/detalle', [BulkLoadController::class, 'detail'])->whereNumber('id');
+
+        Route::get('/dashboard/resumen', [DashboardController::class, 'summary']);
+        Route::get('/dashboard/asistencia', [DashboardController::class, 'attendance']);
+        Route::get('/dashboard/cupos', [DashboardController::class, 'quotas']);
+        Route::get('/dashboard/examenes', [DashboardController::class, 'exams']);
     });
 
     Route::middleware(['auth.internal', 'role:administrador,docente'])
@@ -133,6 +166,13 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware(['auth.internal', 'role:administrador,alumno'])
         ->get('/horarios/alumno/{id}', [ClassScheduleController::class, 'studentSchedules'])
         ->whereNumber('id');
+
+    Route::middleware(['auth.internal', 'role:administrador,alumno'])->group(function (): void {
+        Route::get('/notas/alumno/{id}', [GradeAverageController::class, 'notesByStudent'])->whereNumber('id');
+        Route::get('/promedios', [GradeAverageController::class, 'averages']);
+        Route::get('/promedios/aprobados', [GradeAverageController::class, 'approved']);
+        Route::get('/promedios/reprobados', [GradeAverageController::class, 'failed']);
+    });
 
     Route::middleware(['auth.internal', 'role:docente'])->prefix('asistencia-docente')->group(function (): void {
         Route::get('/horario-activo', [TeacherAttendanceController::class, 'activeSchedule']);
@@ -144,6 +184,13 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/horario-activo', [StudentAttendanceController::class, 'activeSchedule']);
         Route::post('/marcar', [StudentAttendanceController::class, 'mark']);
         Route::get('/mis-asistencias', [StudentAttendanceController::class, 'myAttendance']);
+    });
+
+    Route::middleware(['auth.internal', 'role:alumno'])->prefix('alumno/examenes')->group(function (): void {
+        Route::get('/habilitados', [StudentExamController::class, 'enabled']);
+        Route::get('/{id}', [StudentExamController::class, 'show'])->whereNumber('id');
+        Route::post('/{id}/responder', [StudentExamController::class, 'answer'])->whereNumber('id');
+        Route::get('/{id}/resultado', [StudentExamController::class, 'result'])->whereNumber('id');
     });
 
     Route::middleware(['auth.internal', 'role:docente'])->prefix('asistencia-alumno/docente')->group(function (): void {
