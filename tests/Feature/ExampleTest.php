@@ -231,4 +231,202 @@ class ExampleTest extends TestCase
             'mensaje' => 'Token de autenticacion requerido.',
         ]);
     }
+
+    public function test_applicant_conversion_requires_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/postulantes/1/convertir-alumno');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_academic_gestions_require_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/gestiones');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_academic_careers_require_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/carreras', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_academic_quotas_require_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/cupos');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teachers_list_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/docentes');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_creation_requires_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/docentes', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_deactivation_requires_authentication_token(): void
+    {
+        $response = $this->deleteJson('/api/v1/docentes/1');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_subjects_require_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/materias');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_groups_require_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/grupos', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_group_student_assignment_requires_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/grupos/asignar-alumnos', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_classrooms_require_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/aulas');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_days_require_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/dias');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_shifts_require_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/turnos', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_periods_require_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/periodos', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_schedules_list_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/horarios');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_schedule_creation_requires_authentication_token(): void
+    {
+        $response = $this->postJson('/api/v1/horarios', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_schedule_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/horarios/docente/1');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_student_schedule_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/horarios/alumno/1');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
 }
