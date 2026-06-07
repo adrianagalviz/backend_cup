@@ -7,12 +7,28 @@ use App\Models\DocenteModel;
 use App\Models\GrupoModel;
 use App\Models\HorarioClaseModel;
 use App\Models\MateriaModel;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class TeacherAssignmentService
 {
+    public function listAssignments(array $filters): LengthAwarePaginator
+    {
+        return $this->baseQuery()
+            ->when($filters['docente_id'] ?? null, fn (Builder $query, int|string $id) => $query->where('docente_id', (int) $id))
+            ->when($filters['materia_id'] ?? null, fn (Builder $query, int|string $id) => $query->where('materia_id', (int) $id))
+            ->when($filters['grupo_id'] ?? null, fn (Builder $query, int|string $id) => $query->where('grupo_id', (int) $id))
+            ->when($filters['gestion_academica_id'] ?? null, fn (Builder $query, int|string $id) => $query->where('gestion_academica_id', (int) $id))
+            ->when(array_key_exists('activo', $filters), function (Builder $query) use ($filters): void {
+                $query->where('activo', filter_var($filters['activo'], FILTER_VALIDATE_BOOLEAN));
+            })
+            ->orderByDesc('id')
+            ->paginate((int) ($filters['por_pagina'] ?? 15));
+    }
+
     public function createAssignment(array $data): AsignacionDocenteModel
     {
         return DB::transaction(function () use ($data): AsignacionDocenteModel {

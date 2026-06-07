@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use RuntimeException;
 
 class TeacherAssignmentController extends Controller
@@ -17,6 +18,38 @@ class TeacherAssignmentController extends Controller
     public function __construct(
         private readonly TeacherAssignmentService $assignments,
     ) {
+    }
+
+    public function index(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->query(), [
+            'docente_id' => ['nullable', 'integer', 'exists:docente,id'],
+            'materia_id' => ['nullable', 'integer', 'exists:materia,id'],
+            'grupo_id' => ['nullable', 'integer', 'exists:grupo,id'],
+            'gestion_academica_id' => ['nullable', 'integer', 'exists:gestion_academica,id'],
+            'activo' => ['nullable', Rule::in(['true', 'false', '1', '0'])],
+            'por_pagina' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ], $this->messages());
+
+        if ($validator->fails()) {
+            return ValidationHelper::failed($validator);
+        }
+
+        $assignments = $this->assignments->listAssignments($validator->validated());
+
+        return response()->json([
+            'ok' => true,
+            'mensaje' => 'Asignaciones docentes obtenidas correctamente.',
+            'datos' => collect($assignments->items())
+                ->map(fn ($assignment) => $this->assignments->formatAssignment($assignment))
+                ->values(),
+            'meta' => [
+                'pagina_actual' => $assignments->currentPage(),
+                'por_pagina' => $assignments->perPage(),
+                'total' => $assignments->total(),
+                'ultima_pagina' => $assignments->lastPage(),
+            ],
+        ]);
     }
 
     public function store(Request $request): JsonResponse

@@ -75,6 +75,19 @@ class AcademicManagementController extends Controller
         ]);
     }
 
+    public function setCurrentGestion(int $id): JsonResponse
+    {
+        try {
+            $gestion = $this->academic->setCurrentGestion($id);
+        } catch (ModelNotFoundException) {
+            return ApiResponse::error('Gestion academica no encontrada.', [], 404);
+        }
+
+        return ApiResponse::success('Gestion academica global actualizada correctamente.', [
+            'gestion' => $this->academic->formatGestion($gestion),
+        ]);
+    }
+
     public function listCareers(Request $request): JsonResponse
     {
         $validator = Validator::make($request->query(), $this->listRules(['activa', 'buscar']));
@@ -92,9 +105,30 @@ class AcademicManagementController extends Controller
         );
     }
 
+    public function listActiveCareers(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->query(), $this->listRules(['buscar']));
+
+        if ($validator->fails()) {
+            return ValidationHelper::failed($validator);
+        }
+
+        $careers = $this->academic->listCareers([
+            ...$validator->validated(),
+            'activa' => 'true',
+        ]);
+
+        return $this->paginatedResponse(
+            'Carreras activas obtenidas correctamente.',
+            $careers,
+            fn (CarreraModel $career) => $this->academic->formatCareer($career)
+        );
+    }
+
     public function createCareer(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
+            'codigo' => ['required', 'string', 'max:30', 'unique:carrera,codigo'],
             'nombre' => ['required', 'string', 'max:150', 'unique:carrera,nombre'],
             'descripcion' => ['nullable', 'string'],
             'activa' => ['nullable', 'boolean'],
@@ -114,6 +148,7 @@ class AcademicManagementController extends Controller
     public function updateCareer(Request $request, int $id): JsonResponse
     {
         $validator = Validator::make($request->all(), [
+            'codigo' => ['sometimes', 'string', 'max:30', Rule::unique('carrera', 'codigo')->ignore($id)],
             'nombre' => ['sometimes', 'string', 'max:150', Rule::unique('carrera', 'nombre')->ignore($id)],
             'descripcion' => ['nullable', 'string'],
             'activa' => ['sometimes', 'boolean'],
@@ -250,6 +285,8 @@ class AcademicManagementController extends Controller
             'numero_gestion.in' => 'La gestion debe ser 1 o 2.',
             'nombre.required' => 'El nombre es obligatorio.',
             'nombre.unique' => 'El nombre ya esta registrado.',
+            'codigo.required' => 'El codigo de la carrera es obligatorio.',
+            'codigo.unique' => 'El codigo de la carrera ya esta registrado.',
             'fecha_fin.after_or_equal' => 'La fecha fin debe ser mayor o igual a la fecha inicio.',
         ];
     }

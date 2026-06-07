@@ -14,15 +14,25 @@ class AcademicManagementService
 {
     public function createGestion(array $data): GestionAcademicaModel
     {
-        $id = DB::table('gestion_academica')->insertGetId([
-            'anio' => $data['anio'],
-            'numero_gestion' => $data['numero_gestion'],
-            'nombre' => $data['nombre'],
-            'fecha_inicio' => $data['fecha_inicio'] ?? null,
-            'fecha_fin' => $data['fecha_fin'] ?? null,
-            'activa' => (bool) ($data['activa'] ?? true),
-            'creado_en' => now(),
-        ]);
+        $id = DB::transaction(function () use ($data): int {
+            $active = (bool) ($data['activa'] ?? true);
+
+            if ($active) {
+                DB::table('gestion_academica')->update([
+                    'activa' => false,
+                ]);
+            }
+
+            return DB::table('gestion_academica')->insertGetId([
+                'anio' => $data['anio'],
+                'numero_gestion' => $data['numero_gestion'],
+                'nombre' => $data['nombre'],
+                'fecha_inicio' => $data['fecha_inicio'] ?? null,
+                'fecha_fin' => $data['fecha_fin'] ?? null,
+                'activa' => $active,
+                'creado_en' => now(),
+            ]);
+        });
 
         return $this->findGestion($id);
     }
@@ -47,9 +57,29 @@ class AcademicManagementService
             ->first();
     }
 
+    public function setCurrentGestion(int $id): GestionAcademicaModel
+    {
+        return DB::transaction(function () use ($id): GestionAcademicaModel {
+            $gestion = $this->findGestion($id);
+
+            DB::table('gestion_academica')->update([
+                'activa' => false,
+            ]);
+
+            DB::table('gestion_academica')
+                ->where('id', $gestion->id)
+                ->update([
+                    'activa' => true,
+                ]);
+
+            return $this->findGestion($gestion->id);
+        });
+    }
+
     public function createCareer(array $data): CarreraModel
     {
         $id = DB::table('carrera')->insertGetId([
+            'codigo' => $data['codigo'],
             'nombre' => $data['nombre'],
             'descripcion' => $data['descripcion'] ?? null,
             'activa' => (bool) ($data['activa'] ?? true),
@@ -64,6 +94,7 @@ class AcademicManagementService
         $career = $this->findCareer($id);
 
         $careerData = array_intersect_key($data, array_flip([
+            'codigo',
             'nombre',
             'descripcion',
             'activa',
@@ -83,7 +114,8 @@ class AcademicManagementService
                 $query->where('activa', filter_var($filters['activa'], FILTER_VALIDATE_BOOLEAN));
             })
             ->when($filters['buscar'] ?? null, function (Builder $query, string $search): void {
-                $query->where('nombre', 'ILIKE', "%{$search}%");
+                $query->where('nombre', 'ILIKE', "%{$search}%")
+                    ->orWhere('codigo', 'ILIKE', "%{$search}%");
             })
             ->orderBy('nombre')
             ->paginate((int) ($filters['por_pagina'] ?? 15));
@@ -175,6 +207,7 @@ class AcademicManagementService
     {
         return [
             'id' => $career->id,
+            'codigo' => $career->codigo,
             'nombre' => $career->nombre,
             'descripcion' => $career->descripcion,
             'activa' => $career->activa,
@@ -194,6 +227,7 @@ class AcademicManagementService
             'cupos_disponibles' => $available,
             'carrera' => [
                 'id' => $quota->carrera?->id,
+                'codigo' => $quota->carrera?->codigo,
                 'nombre' => $quota->carrera?->nombre,
                 'activa' => $quota->carrera?->activa,
             ],

@@ -6,7 +6,9 @@ use App\Models\AlumnoModel;
 use App\Models\PagoStripeModel;
 use App\Models\PostulanteModel;
 use App\Models\UsuarioModel;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -161,6 +163,57 @@ class PaymentService
             ->get();
     }
 
+    public function listPayments(array $filters): LengthAwarePaginator
+    {
+        return PagoStripeModel::query()
+            ->with(['postulante.persona', 'validador.persona'])
+            ->when($filters['estado_pago'] ?? null, function (Builder $query, string $status): void {
+                $query->where('estado_pago', $status);
+            })
+            ->when($filters['buscar'] ?? null, function (Builder $query, string $search): void {
+                $query->whereHas('postulante.persona', function (Builder $personQuery) use ($search): void {
+                    $personQuery->where('cedula_identidad', 'ILIKE', "%{$search}%")
+                        ->orWhere('nombres', 'ILIKE', "%{$search}%")
+                        ->orWhere('apellido_paterno', 'ILIKE', "%{$search}%")
+                        ->orWhere('apellido_materno', 'ILIKE', "%{$search}%")
+                        ->orWhere('correo', 'ILIKE', "%{$search}%");
+                });
+            })
+            ->orderByDesc('id')
+            ->paginate((int) ($filters['por_pagina'] ?? 15));
+    }
+
+    public function publicStatusByApplicant(int $postulanteId): array
+    {
+        $postulante = PostulanteModel::query()->findOrFail($postulanteId);
+        $payments = PagoStripeModel::query()
+            ->where('postulante_id', $postulante->id)
+            ->orderByDesc('id')
+            ->get();
+
+        return [
+            'postulante_id' => $postulante->id,
+            'estado_requisitos' => $postulante->estado_requisitos,
+            'estado_pago' => $postulante->estado_pago,
+            'estado_postulante' => $postulante->estado_postulante,
+            'puede_pagar' => $postulante->estado_requisitos === 'aprobado'
+                && ! $payments->contains(fn (PagoStripeModel $payment) => $payment->estado_pago === 'pagado')
+                && ! AlumnoModel::query()->where('postulante_id', $postulante->id)->exists(),
+            'existe_pago_pagado' => $payments->contains(fn (PagoStripeModel $payment) => $payment->estado_pago === 'pagado'),
+            'existe_pago_validado_admin' => $payments->contains(fn (PagoStripeModel $payment) => $payment->validado_por_usuario_id !== null && $payment->validado_en !== null),
+            'pagos' => $payments->map(fn (PagoStripeModel $payment): array => [
+                'id' => $payment->id,
+                'monto' => $payment->monto,
+                'moneda' => $payment->moneda,
+                'estado_pago' => $payment->estado_pago,
+                'fecha_pago' => $payment->fecha_pago,
+                'validado_admin' => $payment->validado_por_usuario_id !== null && $payment->validado_en !== null,
+                'validado_en' => $payment->validado_en,
+                'creado_en' => $payment->creado_en,
+            ])->values(),
+        ];
+    }
+
     public function validateByAdministrator(int $paymentId, UsuarioModel $administrator): PagoStripeModel
     {
         return DB::transaction(function () use ($paymentId, $administrator): PagoStripeModel {
@@ -211,6 +264,19 @@ class PaymentService
             'validado_por_usuario_id' => $payment->validado_por_usuario_id,
             'validado_en' => $payment->validado_en,
             'creado_en' => $payment->creado_en,
+            'postulante' => $payment->postulante ? [
+                'id' => $payment->postulante->id,
+                'estado_requisitos' => $payment->postulante->estado_requisitos,
+                'estado_pago' => $payment->postulante->estado_pago,
+                'estado_postulante' => $payment->postulante->estado_postulante,
+                'persona' => $payment->postulante->persona ? [
+                    'cedula_identidad' => $payment->postulante->persona->cedula_identidad,
+                    'nombres' => $payment->postulante->persona->nombres,
+                    'apellido_paterno' => $payment->postulante->persona->apellido_paterno,
+                    'apellido_materno' => $payment->postulante->persona->apellido_materno,
+                    'correo' => $payment->postulante->persona->correo,
+                ] : null,
+            ] : null,
         ];
     }
 }

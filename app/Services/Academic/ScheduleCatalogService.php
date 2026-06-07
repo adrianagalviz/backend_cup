@@ -47,6 +47,31 @@ class ScheduleCatalogService
             ->paginate((int) ($filters['por_pagina'] ?? 15));
     }
 
+    public function updateShift(int $id, array $data): TurnoModel
+    {
+        $shift = $this->findShift($id);
+        $shiftData = array_intersect_key($data, array_flip([
+            'nombre',
+            'hora_inicio',
+            'hora_fin',
+            'activo',
+        ]));
+
+        $start = $shiftData['hora_inicio'] ?? $shift->hora_inicio;
+        $end = $shiftData['hora_fin'] ?? $shift->hora_fin;
+
+        if (array_key_exists('hora_inicio', $shiftData) || array_key_exists('hora_fin', $shiftData)) {
+            $this->ensureStartBeforeEnd($start, $end);
+            $this->ensureExistingPeriodsInsideShift($shift->id, $start, $end);
+        }
+
+        if ($shiftData !== []) {
+            DB::table('turno')->where('id', $shift->id)->update($shiftData);
+        }
+
+        return $this->findShift($id);
+    }
+
     public function createPeriod(array $data): PeriodoModel
     {
         $shift = $this->findShift((int) $data['turno_id']);
@@ -182,6 +207,26 @@ class ScheduleCatalogService
 
         if ($periodStart->lessThan($shiftStart) || $periodEnd->greaterThan($shiftEnd)) {
             throw new RuntimeException('El periodo debe estar dentro del horario del turno.');
+        }
+    }
+
+    private function ensureExistingPeriodsInsideShift(int $shiftId, string $start, string $end): void
+    {
+        $shiftStart = $this->time($start);
+        $shiftEnd = $this->time($end);
+
+        $periodsOutside = PeriodoModel::query()
+            ->where('turno_id', $shiftId)
+            ->get()
+            ->contains(function (PeriodoModel $period) use ($shiftStart, $shiftEnd): bool {
+                $periodStart = $this->time($period->hora_inicio);
+                $periodEnd = $this->time($period->hora_fin);
+
+                return $periodStart->lessThan($shiftStart) || $periodEnd->greaterThan($shiftEnd);
+            });
+
+        if ($periodsOutside) {
+            throw new RuntimeException('No se puede ajustar el turno porque existen periodos fuera del nuevo rango.');
         }
     }
 

@@ -221,6 +221,17 @@ class ExampleTest extends TestCase
         ]);
     }
 
+    public function test_payments_list_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/pagos');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
     public function test_admin_payment_validation_requires_authentication_token(): void
     {
         $response = $this->patchJson('/api/v1/pagos/1/validar-admin');
@@ -246,6 +257,17 @@ class ExampleTest extends TestCase
     public function test_academic_gestions_require_authentication_token(): void
     {
         $response = $this->getJson('/api/v1/gestiones');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_academic_gestion_activation_requires_authentication_token(): void
+    {
+        $response = $this->patchJson('/api/v1/gestiones/1/activar');
 
         $response->assertStatus(401);
         $response->assertJson([
@@ -331,6 +353,28 @@ class ExampleTest extends TestCase
         ]);
     }
 
+    public function test_group_update_requires_authentication_token(): void
+    {
+        $response = $this->putJson('/api/v1/grupos/1', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_group_deactivation_requires_authentication_token(): void
+    {
+        $response = $this->deleteJson('/api/v1/grupos/1');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
     public function test_group_student_assignment_requires_authentication_token(): void
     {
         $response = $this->postJson('/api/v1/grupos/asignar-alumnos', []);
@@ -367,6 +411,17 @@ class ExampleTest extends TestCase
     public function test_shifts_require_authentication_token(): void
     {
         $response = $this->postJson('/api/v1/turnos', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_shift_update_requires_authentication_token(): void
+    {
+        $response = $this->putJson('/api/v1/turnos/1', []);
 
         $response->assertStatus(401);
         $response->assertJson([
@@ -433,6 +488,17 @@ class ExampleTest extends TestCase
     public function test_teacher_assignment_creation_requires_authentication_token(): void
     {
         $response = $this->postJson('/api/v1/asignaciones/docente-materia-grupo', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_teacher_assignments_list_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/asignaciones');
 
         $response->assertStatus(401);
         $response->assertJson([

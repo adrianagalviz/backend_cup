@@ -57,6 +57,60 @@ class ClassroomGroupController extends Controller
         ], 201);
     }
 
+    public function updateGroup(Request $request, int $id): JsonResponse
+    {
+        $group = GrupoModel::query()->find($id);
+
+        if (! $group) {
+            return ApiResponse::error('Grupo no encontrado.', [], 404);
+        }
+
+        $gestionId = $request->input('gestion_academica_id', $group->gestion_academica_id);
+
+        $validator = Validator::make($request->all(), [
+            'gestion_academica_id' => ['sometimes', 'integer', 'exists:gestion_academica,id'],
+            'nombre' => [
+                'sometimes',
+                'string',
+                'max:100',
+                Rule::unique('grupo', 'nombre')
+                    ->where(fn ($query) => $query->where('gestion_academica_id', $gestionId))
+                    ->ignore($id),
+            ],
+            'cupo_maximo' => ['sometimes', 'integer', 'min:1', 'max:70'],
+            'activo' => ['sometimes', 'boolean'],
+        ], $this->messages());
+
+        if ($validator->fails()) {
+            return ValidationHelper::failed($validator);
+        }
+
+        try {
+            $group = $this->classrooms->updateGroup($id, $validator->validated());
+        } catch (ModelNotFoundException) {
+            return ApiResponse::error('Grupo no encontrado.', [], 404);
+        } catch (RuntimeException $exception) {
+            return ApiResponse::error($exception->getMessage(), [], 422);
+        }
+
+        return ApiResponse::success('Grupo actualizado correctamente.', [
+            'grupo' => $this->classrooms->formatGroup($group),
+        ]);
+    }
+
+    public function deactivateGroup(int $id): JsonResponse
+    {
+        try {
+            $group = $this->classrooms->updateGroup($id, ['activo' => false]);
+        } catch (ModelNotFoundException) {
+            return ApiResponse::error('Grupo no encontrado.', [], 404);
+        }
+
+        return ApiResponse::success('Grupo desactivado correctamente.', [
+            'grupo' => $this->classrooms->formatGroup($group),
+        ]);
+    }
+
     public function listGroups(Request $request): JsonResponse
     {
         $validator = Validator::make($request->query(), [

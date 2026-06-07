@@ -75,6 +75,32 @@ class ScheduleCatalogController extends Controller
         );
     }
 
+    public function updateShift(Request $request, int $id): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'nombre' => ['sometimes', 'string', 'max:50', Rule::unique('turno', 'nombre')->ignore($id)],
+            'hora_inicio' => ['sometimes', 'date_format:H:i'],
+            'hora_fin' => ['sometimes', 'date_format:H:i'],
+            'activo' => ['sometimes', 'boolean'],
+        ], $this->messages());
+
+        if ($validator->fails()) {
+            return ValidationHelper::failed($validator);
+        }
+
+        try {
+            $shift = $this->catalog->updateShift($id, $validator->validated());
+        } catch (ModelNotFoundException) {
+            return ApiResponse::error('Turno no encontrado.', [], 404);
+        } catch (RuntimeException $exception) {
+            return ApiResponse::error($exception->getMessage(), [], 422);
+        }
+
+        return ApiResponse::success('Turno actualizado correctamente.', [
+            'turno' => $this->catalog->formatShift($shift),
+        ]);
+    }
+
     public function createPeriod(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [

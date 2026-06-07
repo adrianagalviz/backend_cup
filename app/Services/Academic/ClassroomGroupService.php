@@ -59,6 +59,35 @@ class ClassroomGroupService
             ->findOrFail($id);
     }
 
+    public function updateGroup(int $id, array $data): GrupoModel
+    {
+        $group = $this->findGroup($id);
+
+        $groupData = array_intersect_key($data, array_flip([
+            'gestion_academica_id',
+            'nombre',
+            'cupo_maximo',
+            'activo',
+        ]));
+
+        if (array_key_exists('cupo_maximo', $groupData)) {
+            $occupied = GrupoAlumnoModel::query()
+                ->where('grupo_id', $group->id)
+                ->where('activo', true)
+                ->count();
+
+            if ((int) $groupData['cupo_maximo'] < $occupied) {
+                throw new RuntimeException('El cupo maximo no puede ser menor a la cantidad de alumnos del grupo.');
+            }
+        }
+
+        if ($groupData !== []) {
+            DB::table('grupo')->where('id', $group->id)->update($groupData);
+        }
+
+        return $this->findGroup($id);
+    }
+
     public function groupStudents(int $groupId): Collection
     {
         $this->findGroup($groupId);

@@ -270,6 +270,7 @@ class CareerAssignmentService
 
         return [
             'id' => $career->id,
+            'codigo' => $career->codigo,
             'nombre' => $career->nombre,
         ];
     }

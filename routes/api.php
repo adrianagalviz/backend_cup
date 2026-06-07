@@ -49,10 +49,13 @@ Route::prefix('v1')->group(function (): void {
 
     Route::post('/postulantes', [ApplicantController::class, 'store']);
     Route::post('/postulantes/{id}/documentos', [ApplicantDocumentController::class, 'store'])->whereNumber('id');
+    Route::get('/gestiones/actual', [AcademicManagementController::class, 'currentGestion']);
+    Route::get('/carreras/activas', [AcademicManagementController::class, 'listActiveCareers']);
 
     Route::prefix('pagos')->group(function (): void {
         Route::post('/stripe/crear-sesion', [PaymentController::class, 'createStripeSession']);
         Route::post('/stripe/webhook', [PaymentController::class, 'stripeWebhook']);
+        Route::get('/postulante/{id}/estado-publico', [PaymentController::class, 'publicStatusByApplicant'])->whereNumber('id');
     });
 
     Route::middleware(['auth.internal', 'role:administrador'])->prefix('postulantes')->group(function (): void {
@@ -66,6 +69,7 @@ Route::prefix('v1')->group(function (): void {
     });
 
     Route::middleware(['auth.internal', 'role:administrador'])->prefix('pagos')->group(function (): void {
+        Route::get('/', [PaymentController::class, 'index']);
         Route::get('/postulante/{id}', [PaymentController::class, 'byApplicant'])->whereNumber('id');
         Route::patch('/{id}/validar-admin', [PaymentController::class, 'validateAdmin'])->whereNumber('id');
     });
@@ -73,7 +77,7 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware(['auth.internal', 'role:administrador'])->group(function (): void {
         Route::get('/gestiones', [AcademicManagementController::class, 'listGestiones']);
         Route::post('/gestiones', [AcademicManagementController::class, 'createGestion']);
-        Route::get('/gestiones/actual', [AcademicManagementController::class, 'currentGestion']);
+        Route::patch('/gestiones/{id}/activar', [AcademicManagementController::class, 'setCurrentGestion'])->whereNumber('id');
 
         Route::get('/carreras', [AcademicManagementController::class, 'listCareers']);
         Route::post('/carreras', [AcademicManagementController::class, 'createCareer']);
@@ -94,6 +98,8 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/grupos', [ClassroomGroupController::class, 'listGroups']);
         Route::post('/grupos', [ClassroomGroupController::class, 'createGroup']);
+        Route::put('/grupos/{id}', [ClassroomGroupController::class, 'updateGroup'])->whereNumber('id');
+        Route::delete('/grupos/{id}', [ClassroomGroupController::class, 'deactivateGroup'])->whereNumber('id');
         Route::get('/grupos/calcular-necesarios', [ClassroomGroupController::class, 'calculateGroups']);
         Route::post('/grupos/asignar-alumnos', [ClassroomGroupController::class, 'assignStudents']);
         Route::get('/grupos/{id}/alumnos', [ClassroomGroupController::class, 'groupStudents'])->whereNumber('id');
@@ -106,6 +112,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/turnos', [ScheduleCatalogController::class, 'shifts']);
         Route::post('/turnos', [ScheduleCatalogController::class, 'createShift']);
+        Route::put('/turnos/{id}', [ScheduleCatalogController::class, 'updateShift'])->whereNumber('id');
 
         Route::get('/periodos', [ScheduleCatalogController::class, 'periods']);
         Route::post('/periodos', [ScheduleCatalogController::class, 'createPeriod']);
@@ -113,6 +120,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/horarios', [ClassScheduleController::class, 'index']);
         Route::post('/horarios', [ClassScheduleController::class, 'store']);
 
+        Route::get('/asignaciones', [TeacherAssignmentController::class, 'index']);
         Route::post('/asignaciones/docente-materia-grupo', [TeacherAssignmentController::class, 'store']);
         Route::get('/asignaciones/docente/{id}', [TeacherAssignmentController::class, 'byTeacher'])->whereNumber('id');
         Route::get('/asignaciones/grupo/{id}', [TeacherAssignmentController::class, 'byGroup'])->whereNumber('id');

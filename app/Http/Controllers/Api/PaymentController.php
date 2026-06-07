@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use RuntimeException;
 
 class PaymentController extends Controller
@@ -84,6 +85,48 @@ class PaymentController extends Controller
             'pagos' => $formattedPayments,
             'existe_pago_pagado' => $payments->contains(fn (PagoStripeModel $payment) => $payment->estado_pago === 'pagado'),
             'existe_pago_validado_admin' => $payments->contains(fn (PagoStripeModel $payment) => $payment->validado_por_usuario_id !== null && $payment->validado_en !== null),
+        ]);
+    }
+
+    public function publicStatusByApplicant(int $id): JsonResponse
+    {
+        try {
+            $status = $this->payments->publicStatusByApplicant($id);
+        } catch (ModelNotFoundException) {
+            return ApiResponse::error('Postulante no encontrado.', [], 404);
+        }
+
+        return ApiResponse::success('Estado de pago del postulante obtenido correctamente.', [
+            'estado_pago_postulante' => $status,
+        ]);
+    }
+
+    public function index(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->query(), [
+            'estado_pago' => ['nullable', Rule::in(['pendiente', 'pagado', 'fallido'])],
+            'buscar' => ['nullable', 'string', 'max:150'],
+            'por_pagina' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ], $this->messages());
+
+        if ($validator->fails()) {
+            return ValidationHelper::failed($validator);
+        }
+
+        $payments = $this->payments->listPayments($validator->validated());
+
+        return response()->json([
+            'ok' => true,
+            'mensaje' => 'Pagos obtenidos correctamente.',
+            'datos' => collect($payments->items())
+                ->map(fn (PagoStripeModel $payment) => $this->payments->formatPayment($payment))
+                ->values(),
+            'meta' => [
+                'pagina_actual' => $payments->currentPage(),
+                'por_pagina' => $payments->perPage(),
+                'total' => $payments->total(),
+                'ultima_pagina' => $payments->lastPage(),
+            ],
         ]);
     }
 

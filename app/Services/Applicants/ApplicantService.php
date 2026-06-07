@@ -97,6 +97,7 @@ class ApplicantService
                 'gestionAcademica',
                 'documentos',
                 'pagoStripe',
+                'alumno.usuario',
                 'postulacion.primeraCarrera',
                 'postulacion.segundaCarrera',
                 'postulacion.carreraAsignada',
@@ -240,6 +241,14 @@ class ApplicantService
                 'validado_por_usuario_id' => $postulante->pagoStripe->validado_por_usuario_id,
                 'validado_en' => $postulante->pagoStripe->validado_en,
             ] : null,
+            'alumno' => $postulante->alumno ? [
+                'id' => $postulante->alumno->id,
+                'codigo_alumno' => $postulante->alumno->codigo_alumno,
+                'estado_academico' => $postulante->alumno->estado_academico,
+                'codigo_acceso' => $postulante->alumno->usuario?->codigo_acceso,
+                'usuario_id' => $postulante->alumno->usuario_id,
+                'creado_en' => $postulante->alumno->creado_en,
+            ] : null,
             'creado_en' => $postulante->creado_en,
             'actualizado_en' => $postulante->actualizado_en,
         ];
@@ -295,14 +304,17 @@ class ApplicantService
             'id' => $postulante->postulacion->id,
             'primera_carrera' => [
                 'id' => $postulante->postulacion->primeraCarrera?->id,
+                'codigo' => $postulante->postulacion->primeraCarrera?->codigo,
                 'nombre' => $postulante->postulacion->primeraCarrera?->nombre,
             ],
             'segunda_carrera' => [
                 'id' => $postulante->postulacion->segundaCarrera?->id,
+                'codigo' => $postulante->postulacion->segundaCarrera?->codigo,
                 'nombre' => $postulante->postulacion->segundaCarrera?->nombre,
             ],
             'carrera_asignada' => $postulante->postulacion->carreraAsignada ? [
                 'id' => $postulante->postulacion->carreraAsignada->id,
+                'codigo' => $postulante->postulacion->carreraAsignada->codigo,
                 'nombre' => $postulante->postulacion->carreraAsignada->nombre,
             ] : null,
             'promedio_final' => $postulante->postulacion->promedio_final,

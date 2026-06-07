@@ -42,4 +42,9 @@ class PostulanteModel extends Model
     {
         return $this->hasOne(PagoStripeModel::class, 'postulante_id');
     }
+
+    public function alumno(): HasOne
+    {
+        return $this->hasOne(AlumnoModel::class, 'postulante_id');
+    }
 }
