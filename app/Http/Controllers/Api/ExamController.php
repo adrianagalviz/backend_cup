@@ -100,7 +100,6 @@ class ExamController extends Controller
         $validator = Validator::make($request->all(), [
             'materia_id' => ['required', 'integer', 'exists:materia,id'],
             'enunciado' => ['required', 'string'],
-            'puntaje' => ['nullable', 'numeric', 'min:0.01', 'max:100'],
             'activa' => ['nullable', 'boolean'],
         ], $this->messages());
 

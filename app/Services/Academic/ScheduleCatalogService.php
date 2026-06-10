@@ -14,11 +14,15 @@ use RuntimeException;
 
 class ScheduleCatalogService
 {
+    private const SHIFT_MINUTES = 360;
+    private const PERIOD_MINUTES = 90;
+
     public function listDays(): Collection
     {
         $this->ensureBaseDays();
 
         return DiaModel::query()
+            ->where('activo', true)
             ->orderBy('orden')
             ->get();
     }
@@ -26,13 +30,20 @@ class ScheduleCatalogService
     public function createShift(array $data): TurnoModel
     {
         $this->ensureStartBeforeEnd($data['hora_inicio'], $data['hora_fin']);
+        $this->ensureSixHourShift($data['hora_inicio'], $data['hora_fin']);
 
-        $id = DB::table('turno')->insertGetId([
-            'nombre' => $data['nombre'],
-            'hora_inicio' => $data['hora_inicio'],
-            'hora_fin' => $data['hora_fin'],
-            'activo' => (bool) ($data['activo'] ?? true),
-        ]);
+        $id = DB::transaction(function () use ($data): int {
+            $shiftId = DB::table('turno')->insertGetId([
+                'nombre' => $data['nombre'],
+                'hora_inicio' => $data['hora_inicio'],
+                'hora_fin' => $data['hora_fin'],
+                'activo' => (bool) ($data['activo'] ?? true),
+            ]);
+
+            $this->generatePeriodsForShift($shiftId, $data['hora_inicio'], $data['hora_fin']);
+
+            return $shiftId;
+        });
 
         return $this->findShift($id);
     }
@@ -62,20 +73,40 @@ class ScheduleCatalogService
 
         if (array_key_exists('hora_inicio', $shiftData) || array_key_exists('hora_fin', $shiftData)) {
             $this->ensureStartBeforeEnd($start, $end);
+            $this->ensureSixHourShift($start, $end);
             $this->ensureExistingPeriodsInsideShift($shift->id, $start, $end);
         }
 
         if ($shiftData !== []) {
-            DB::table('turno')->where('id', $shift->id)->update($shiftData);
+            DB::transaction(function () use ($shift, $shiftData, $start, $end): void {
+                DB::table('turno')->where('id', $shift->id)->update($shiftData);
+
+                if (array_key_exists('hora_inicio', $shiftData) || array_key_exists('hora_fin', $shiftData)) {
+                    $this->ensureShiftHasNoSchedules($shift->id);
+                    $this->generatePeriodsForShift($shift->id, $start, $end);
+                }
+            });
         }
 
         return $this->findShift($id);
     }
 
+    public function deleteShift(int $id): void
+    {
+        $shift = $this->findShift($id);
+
+        $this->ensureShiftHasNoSchedules($shift->id, 'No se puede eliminar un turno que ya tiene horarios asignados.');
+
+        DB::transaction(function () use ($shift): void {
+            DB::table('periodo')->where('turno_id', $shift->id)->delete();
+            DB::table('turno')->where('id', $shift->id)->delete();
+        });
+    }
+
     public function createPeriod(array $data): PeriodoModel
     {
         $shift = $this->findShift((int) $data['turno_id']);
-        $this->ensureFortyFiveMinutes($data['hora_inicio'], $data['hora_fin']);
+        $this->ensureNinetyMinutes($data['hora_inicio'], $data['hora_fin']);
         $this->ensurePeriodInsideShift($shift, $data['hora_inicio'], $data['hora_fin']);
 
         $id = DB::table('periodo')->insertGetId([
@@ -83,7 +114,7 @@ class ScheduleCatalogService
             'numero_periodo' => $data['numero_periodo'],
             'hora_inicio' => $data['hora_inicio'],
             'hora_fin' => $data['hora_fin'],
-            'duracion_minutos' => 45,
+            'duracion_minutos' => self::PERIOD_MINUTES,
             'activo' => (bool) ($data['activo'] ?? true),
         ]);
 
@@ -158,6 +189,9 @@ class ScheduleCatalogService
 
     private function ensureBaseDays(): void
     {
+        DB::table('dia')->where('orden', '>', 6)->update(['activo' => false]);
+        DB::table('dia')->where('nombre', 'Domingo')->update(['activo' => false]);
+
         foreach ($this->baseDays() as $day) {
             DB::table('dia')->updateOrInsert(
                 ['nombre' => $day['nombre']],
@@ -166,6 +200,15 @@ class ScheduleCatalogService
                     'activo' => true,
                 ]
             );
+        }
+    }
+
+    private function ensureShiftHasNoSchedules(int $shiftId, string $message = 'No se puede regenerar periodos de un turno que ya tiene horarios asignados.'): void
+    {
+        $hasSchedules = DB::table('horario_clase')->where('turno_id', $shiftId)->exists();
+
+        if ($hasSchedules) {
+            throw new RuntimeException($message);
         }
     }
 
@@ -178,8 +221,33 @@ class ScheduleCatalogService
             ['nombre' => 'Jueves', 'orden' => 4],
             ['nombre' => 'Viernes', 'orden' => 5],
             ['nombre' => 'Sabado', 'orden' => 6],
-            ['nombre' => 'Domingo', 'orden' => 7],
         ];
+    }
+
+    private function generatePeriodsForShift(int $shiftId, string $start, string $end): void
+    {
+        DB::table('periodo')->where('turno_id', $shiftId)->delete();
+
+        $current = $this->time($start);
+        $limit = $this->time($end);
+        $number = 1;
+
+        while ($current->copy()->addMinutes(self::PERIOD_MINUTES)->lessThanOrEqualTo($limit)) {
+            $periodStart = $current->format('H:i');
+            $periodEnd = $current->copy()->addMinutes(self::PERIOD_MINUTES)->format('H:i');
+
+            DB::table('periodo')->insert([
+                'turno_id' => $shiftId,
+                'numero_periodo' => $number,
+                'hora_inicio' => $periodStart,
+                'hora_fin' => $periodEnd,
+                'duracion_minutos' => self::PERIOD_MINUTES,
+                'activo' => true,
+            ]);
+
+            $current->addMinutes(self::PERIOD_MINUTES);
+            $number++;
+        }
     }
 
     private function ensureStartBeforeEnd(string $start, string $end): void
@@ -189,13 +257,27 @@ class ScheduleCatalogService
         }
     }
 
-    private function ensureFortyFiveMinutes(string $start, string $end): void
+    private function ensureNinetyMinutes(string $start, string $end): void
     {
-        $minutes = $this->time($start)->diffInMinutes($this->time($end), false);
+        $minutes = $this->diffInMinutes($start, $end);
 
-        if ($minutes !== 45) {
-            throw new RuntimeException('Cada periodo debe durar exactamente 45 minutos.');
+        if ($minutes !== self::PERIOD_MINUTES) {
+            throw new RuntimeException('Cada periodo debe durar exactamente 90 minutos.');
         }
+    }
+
+    private function ensureSixHourShift(string $start, string $end): void
+    {
+        $minutes = $this->diffInMinutes($start, $end);
+
+        if ($minutes !== self::SHIFT_MINUTES) {
+            throw new RuntimeException('El turno debe durar exactamente 6 horas y dividirse en 4 periodos de 90 minutos.');
+        }
+    }
+
+    private function diffInMinutes(string $start, string $end): int
+    {
+        return (int) $this->time($start)->diffInMinutes($this->time($end), false);
     }
 
     private function ensurePeriodInsideShift(TurnoModel $shift, string $start, string $end): void

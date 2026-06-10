@@ -63,27 +63,33 @@ class ExamManagementService
                 ]);
             }
 
+            $this->recalculateQuestionScores($exam->id);
+
             return $this->findExam($exam->id);
         });
     }
 
     public function createQuestion(int $examId, array $data): PreguntaModel
     {
-        $exam = $this->findExam($examId);
-        $this->ensureCanEditExam($exam);
-        $this->ensureSubjectBelongsToExam($exam->id, (int) $data['materia_id']);
+        return DB::transaction(function () use ($examId, $data): PreguntaModel {
+            $exam = $this->findExam($examId);
+            $this->ensureCanEditExam($exam);
+            $this->ensureSubjectBelongsToExam($exam->id, (int) $data['materia_id']);
 
-        $id = DB::table('pregunta')->insertGetId([
-            'examen_id' => $exam->id,
-            'materia_id' => $data['materia_id'],
-            'enunciado' => $data['enunciado'],
-            'tipo_pregunta' => 'seleccion_multiple',
-            'puntaje' => $data['puntaje'] ?? 1,
-            'activa' => (bool) ($data['activa'] ?? true),
-            'creado_en' => now(),
-        ]);
+            $id = DB::table('pregunta')->insertGetId([
+                'examen_id' => $exam->id,
+                'materia_id' => $data['materia_id'],
+                'enunciado' => $data['enunciado'],
+                'tipo_pregunta' => 'seleccion_multiple',
+                'puntaje' => 1,
+                'activa' => (bool) ($data['activa'] ?? true),
+                'creado_en' => now(),
+            ]);
 
-        return $this->findQuestion($id);
+            $this->recalculateQuestionScores($exam->id, (int) $data['materia_id']);
+
+            return $this->findQuestion($id);
+        });
     }
 
     public function syncOptions(int $questionId, array $options): PreguntaModel
@@ -232,6 +238,36 @@ class ExamManagementService
 
         if (! $exists) {
             throw new RuntimeException('La materia debe estar asociada al examen antes de crear preguntas.');
+        }
+    }
+
+    private function recalculateQuestionScores(int $examId, ?int $subjectId = null): void
+    {
+        $percentages = DB::table('examen_materia_porcentaje')
+            ->where('examen_id', $examId)
+            ->when($subjectId, fn ($query) => $query->where('materia_id', $subjectId))
+            ->get(['materia_id', 'porcentaje']);
+
+        foreach ($percentages as $percentage) {
+            $activeQuestions = DB::table('pregunta')
+                ->where('examen_id', $examId)
+                ->where('materia_id', $percentage->materia_id)
+                ->where('activa', true)
+                ->count();
+
+            if ($activeQuestions < 1) {
+                continue;
+            }
+
+            $score = round(((float) $percentage->porcentaje) / $activeQuestions, 2);
+
+            DB::table('pregunta')
+                ->where('examen_id', $examId)
+                ->where('materia_id', $percentage->materia_id)
+                ->where('activa', true)
+                ->update([
+                    'puntaje' => $score,
+                ]);
         }
     }
 

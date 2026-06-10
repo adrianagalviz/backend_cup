@@ -101,6 +101,22 @@ class PaymentController extends Controller
         ]);
     }
 
+    public function temporaryAutomaticPayment(int $id): JsonResponse
+    {
+        try {
+            $payment = $this->payments->registerTemporaryAutomaticPayment($id);
+        } catch (ModelNotFoundException) {
+            return ApiResponse::error('Postulante no encontrado.', [], 404);
+        } catch (RuntimeException $exception) {
+            return ApiResponse::error($exception->getMessage(), [], 422);
+        }
+
+        return ApiResponse::success('Pago temporal registrado automaticamente correctamente.', [
+            'pago' => $this->payments->formatPayment($payment),
+            'estado_pago_postulante' => $this->payments->publicStatusByApplicant($id),
+        ], 201);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $validator = Validator::make($request->query(), [

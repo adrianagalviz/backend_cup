@@ -101,6 +101,19 @@ class ScheduleCatalogController extends Controller
         ]);
     }
 
+    public function deleteShift(int $id): JsonResponse
+    {
+        try {
+            $this->catalog->deleteShift($id);
+        } catch (ModelNotFoundException) {
+            return ApiResponse::error('Turno no encontrado.', [], 404);
+        } catch (RuntimeException $exception) {
+            return ApiResponse::error($exception->getMessage(), [], 422);
+        }
+
+        return ApiResponse::success('Turno eliminado correctamente.');
+    }
+
     public function createPeriod(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [

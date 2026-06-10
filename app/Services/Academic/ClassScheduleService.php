@@ -27,7 +27,7 @@ class ClassScheduleService
             $period = PeriodoModel::query()->findOrFail($data['periodo_id']);
 
             $this->validateEntities($data, $group, $teacher, $period);
-            $this->validateScheduleConflicts($data);
+            $this->validateScheduleConflicts($data, $period->hora_inicio, $period->hora_fin);
 
             $scheduleId = DB::table('horario_clase')->insertGetId([
                 'gestion_academica_id' => $data['gestion_academica_id'],
@@ -189,12 +189,17 @@ class ClassScheduleService
             throw new RuntimeException('El docente debe estar activo y contratado.');
         }
 
-        $this->ensureActive(DiaModel::query()->findOrFail($data['dia_id']), 'dia');
+        $day = DiaModel::query()->findOrFail($data['dia_id']);
+        $this->ensureActive($day, 'dia');
         $this->ensureActive(TurnoModel::query()->findOrFail($data['turno_id']), 'turno');
         $this->ensureActive($period, 'periodo');
         $this->ensureActive(AulaModel::query()->findOrFail($data['aula_id']), 'aula');
         $this->ensureActive($group, 'grupo');
         $this->ensureActive(MateriaModel::query()->findOrFail($data['materia_id']), 'materia');
+
+        if ((int) $day->orden > 6) {
+            throw new RuntimeException('Solo se pueden programar clases de lunes a sabado.');
+        }
 
         if ((int) $group->gestion_academica_id !== (int) $data['gestion_academica_id']) {
             throw new RuntimeException('El grupo no corresponde a la gestion academica indicada.');
@@ -203,22 +208,27 @@ class ClassScheduleService
         if ((int) $period->turno_id !== (int) $data['turno_id']) {
             throw new RuntimeException('El periodo no corresponde al turno indicado.');
         }
+
+        if ((int) $period->duracion_minutos !== 90) {
+            throw new RuntimeException('Cada clase debe usar un periodo de 90 minutos.');
+        }
     }
 
-    private function validateScheduleConflicts(array $data): void
+    private function validateScheduleConflicts(array $data, string $start, string $end): void
     {
         $base = DB::table('horario_clase')
             ->where('gestion_academica_id', $data['gestion_academica_id'])
             ->where('dia_id', $data['dia_id'])
-            ->where('periodo_id', $data['periodo_id'])
-            ->where('activo', true);
+            ->where('activo', true)
+            ->where('hora_inicio', '<', $end)
+            ->where('hora_fin', '>', $start);
 
         if ((clone $base)->where('grupo_id', $data['grupo_id'])->exists()) {
-            throw new RuntimeException('El grupo ya tiene clase en ese dia, periodo y gestion.');
+            throw new RuntimeException('El grupo ya tiene clase en ese dia y horario.');
         }
 
         if ((clone $base)->where('aula_id', $data['aula_id'])->exists()) {
-            throw new RuntimeException('El aula ya esta ocupada en ese dia, periodo y gestion.');
+            throw new RuntimeException('El aula ya esta ocupada en ese dia y horario.');
         }
 
         $teacherConflict = DB::table('asignacion_docente')
@@ -228,11 +238,12 @@ class ClassScheduleService
             ->where('horario_clase.activo', true)
             ->where('horario_clase.gestion_academica_id', $data['gestion_academica_id'])
             ->where('horario_clase.dia_id', $data['dia_id'])
-            ->where('horario_clase.periodo_id', $data['periodo_id'])
+            ->where('horario_clase.hora_inicio', '<', $end)
+            ->where('horario_clase.hora_fin', '>', $start)
             ->exists();
 
         if ($teacherConflict) {
-            throw new RuntimeException('El docente ya tiene clase en ese dia, periodo y gestion.');
+            throw new RuntimeException('El docente ya tiene clase en ese dia y horario.');
         }
     }
 

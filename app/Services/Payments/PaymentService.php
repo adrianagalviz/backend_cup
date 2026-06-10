@@ -81,6 +81,61 @@ class PaymentService
         });
     }
 
+    public function registerTemporaryAutomaticPayment(int $postulanteId): PagoStripeModel
+    {
+        return DB::transaction(function () use ($postulanteId): PagoStripeModel {
+            $postulante = PostulanteModel::query()->findOrFail($postulanteId);
+
+            if (AlumnoModel::query()->where('postulante_id', $postulante->id)->exists()) {
+                throw new RuntimeException('El postulante ya fue convertido en alumno.');
+            }
+
+            $existingPayment = PagoStripeModel::query()
+                ->where('postulante_id', $postulante->id)
+                ->first();
+
+            if ($existingPayment?->estado_pago === 'pagado') {
+                return $this->findPayment($existingPayment->id);
+            }
+
+            $paymentData = [
+                'stripe_payment_intent_id' => 'temporal_intent_'.$postulante->id,
+                'stripe_checkout_session_id' => 'temporal_session_'.$postulante->id,
+                'monto' => 0,
+                'moneda' => 'BOB',
+                'estado_pago' => 'pagado',
+                'fecha_pago' => now(),
+                'respuesta_stripe' => json_encode([
+                    'modo' => 'pago_temporal_automatico',
+                    'mensaje' => 'Pago temporal registrado sin Stripe.',
+                ]),
+                'validado_por_usuario_id' => null,
+                'validado_en' => null,
+            ];
+
+            if ($existingPayment) {
+                DB::table('pago_stripe')
+                    ->where('id', $existingPayment->id)
+                    ->update($paymentData);
+                $paymentId = $existingPayment->id;
+            } else {
+                $paymentData['postulante_id'] = $postulante->id;
+                $paymentData['creado_en'] = now();
+                $paymentId = DB::table('pago_stripe')->insertGetId($paymentData);
+            }
+
+            DB::table('postulante')
+                ->where('id', $postulante->id)
+                ->update([
+                    'estado_pago' => 'pagado',
+                    'estado_postulante' => 'pagado',
+                    'actualizado_en' => now(),
+                ]);
+
+            return $this->findPayment($paymentId);
+        });
+    }
+
     public function handleWebhook(string $payload, ?string $signature): array
     {
         $event = $this->stripe->constructWebhookEvent($payload, $signature);
@@ -198,6 +253,8 @@ class PaymentService
             'estado_postulante' => $postulante->estado_postulante,
             'puede_pagar' => $postulante->estado_requisitos === 'aprobado'
                 && ! $payments->contains(fn (PagoStripeModel $payment) => $payment->estado_pago === 'pagado')
+                && ! AlumnoModel::query()->where('postulante_id', $postulante->id)->exists(),
+            'puede_pagar_temporal' => ! $payments->contains(fn (PagoStripeModel $payment) => $payment->estado_pago === 'pagado')
                 && ! AlumnoModel::query()->where('postulante_id', $postulante->id)->exists(),
             'existe_pago_pagado' => $payments->contains(fn (PagoStripeModel $payment) => $payment->estado_pago === 'pagado'),
             'existe_pago_validado_admin' => $payments->contains(fn (PagoStripeModel $payment) => $payment->validado_por_usuario_id !== null && $payment->validado_en !== null),

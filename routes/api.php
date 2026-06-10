@@ -56,6 +56,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/stripe/crear-sesion', [PaymentController::class, 'createStripeSession']);
         Route::post('/stripe/webhook', [PaymentController::class, 'stripeWebhook']);
         Route::get('/postulante/{id}/estado-publico', [PaymentController::class, 'publicStatusByApplicant'])->whereNumber('id');
+        Route::post('/postulante/{id}/pago-temporal', [PaymentController::class, 'temporaryAutomaticPayment'])->whereNumber('id');
     });
 
     Route::middleware(['auth.internal', 'role:administrador'])->prefix('postulantes')->group(function (): void {
@@ -113,6 +114,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/turnos', [ScheduleCatalogController::class, 'shifts']);
         Route::post('/turnos', [ScheduleCatalogController::class, 'createShift']);
         Route::put('/turnos/{id}', [ScheduleCatalogController::class, 'updateShift'])->whereNumber('id');
+        Route::delete('/turnos/{id}', [ScheduleCatalogController::class, 'deleteShift'])->whereNumber('id');
 
         Route::get('/periodos', [ScheduleCatalogController::class, 'periods']);
         Route::post('/periodos', [ScheduleCatalogController::class, 'createPeriod']);
