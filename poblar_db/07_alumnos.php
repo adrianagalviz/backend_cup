@@ -18,8 +18,9 @@ return function (array $ctx): void {
     ];
 
     $groups = ['Grupo A', 'Grupo B', 'Grupo C'];
+    $newApplicantsCount = 150;
 
-    for ($i = 1; $i <= 150; $i++) {
+    for ($i = 1; $i <= $newApplicantsCount; $i++) {
         $ci = '2000'.str_pad((string) $i, 3, '0', STR_PAD_LEFT);
         $students[$ci] = $groups[($i - 1) % count($groups)];
     }

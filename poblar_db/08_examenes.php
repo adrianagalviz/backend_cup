@@ -46,36 +46,42 @@ return function (array $ctx): void {
                 ['porcentaje' => $percentage]
             );
 
-            DB::table('pregunta')->updateOrInsert(
-                [
-                    'examen_id' => $examId,
-                    'materia_id' => $subjectId,
-                    'enunciado' => 'Pregunta demo de '.$subject.' para parcial '.$partial,
-                ],
-                [
-                    'tipo_pregunta' => 'seleccion_multiple',
-                    'puntaje' => $percentage,
-                    'activa' => true,
-                    'creado_en' => $h->now(),
-                ]
-            );
+            for ($questionNumber = 1; $questionNumber <= 10; $questionNumber++) {
+                $statement = $questionNumber === 1
+                    ? 'Pregunta demo de '.$subject.' para parcial '.$partial
+                    : 'Pregunta demo '.$questionNumber.' de '.$subject.' para parcial '.$partial;
 
-            $questionId = (int) DB::table('pregunta')
-                ->where('examen_id', $examId)
-                ->where('materia_id', $subjectId)
-                ->where('enunciado', 'Pregunta demo de '.$subject.' para parcial '.$partial)
-                ->value('id');
-
-            foreach ([
-                1 => ['Respuesta correcta de '.$subject, true],
-                2 => ['Distractor A de '.$subject, false],
-                3 => ['Distractor B de '.$subject, false],
-                4 => ['Distractor C de '.$subject, false],
-            ] as $order => [$text, $correct]) {
-                DB::table('opcion_pregunta')->updateOrInsert(
-                    ['pregunta_id' => $questionId, 'orden' => $order],
-                    ['texto_opcion' => $text, 'es_correcta' => $correct]
+                DB::table('pregunta')->updateOrInsert(
+                    [
+                        'examen_id' => $examId,
+                        'materia_id' => $subjectId,
+                        'enunciado' => $statement,
+                    ],
+                    [
+                        'tipo_pregunta' => 'seleccion_multiple',
+                        'puntaje' => round($percentage / 10, 2),
+                        'activa' => true,
+                        'creado_en' => $h->now(),
+                    ]
                 );
+
+                $questionId = (int) DB::table('pregunta')
+                    ->where('examen_id', $examId)
+                    ->where('materia_id', $subjectId)
+                    ->where('enunciado', $statement)
+                    ->value('id');
+
+                foreach ([
+                    1 => ['Respuesta correcta '.$questionNumber.' de '.$subject, true],
+                    2 => ['Distractor A '.$questionNumber.' de '.$subject, false],
+                    3 => ['Distractor B '.$questionNumber.' de '.$subject, false],
+                    4 => ['Distractor C '.$questionNumber.' de '.$subject, false],
+                ] as $order => [$text, $correct]) {
+                    DB::table('opcion_pregunta')->updateOrInsert(
+                        ['pregunta_id' => $questionId, 'orden' => $order],
+                        ['texto_opcion' => $text, 'es_correcta' => $correct]
+                    );
+                }
             }
         }
     }

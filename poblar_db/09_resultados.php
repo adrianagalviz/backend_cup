@@ -19,6 +19,17 @@ return function (array $ctx): void {
         '1001006' => [73, 68, 75],
     ];
 
+    for ($i = 1; $i <= 150; $i++) {
+        $ci = '2000'.str_pad((string) $i, 3, '0', STR_PAD_LEFT);
+        $baseNote = 45 + (($i * 7) % 51);
+
+        $partialNotes[$ci] = [
+            $baseNote,
+            min(100, max(0, $baseNote + (($i % 9) - 4))),
+            min(100, max(0, $baseNote + ((($i * 3) % 11) - 5))),
+        ];
+    }
+
     foreach ($partialNotes as $ci => $notes) {
         $personaId = $h->id('persona', 'cedula_identidad', $ci);
         $alumno = DB::table('alumno')->where('persona_id', $personaId)->first();
@@ -49,19 +60,27 @@ return function (array $ctx): void {
             $questions = DB::table('pregunta')
                 ->where('examen_id', $exam->id)
                 ->orderBy('materia_id')
+                ->orderBy('id')
                 ->get();
 
+            $correctAnswersTarget = (int) round($questions->count() * ($note / 100));
+            $questionIndex = 0;
+
             foreach ($questions as $question) {
-                $correctOptionId = (int) DB::table('opcion_pregunta')
+                $questionIndex++;
+                $isCorrect = $questionIndex <= $correctAnswersTarget;
+
+                $optionId = (int) DB::table('opcion_pregunta')
                     ->where('pregunta_id', $question->id)
-                    ->where('es_correcta', true)
+                    ->where('es_correcta', $isCorrect)
+                    ->orderBy('orden')
                     ->value('id');
 
                 DB::table('respuesta_alumno')->updateOrInsert(
                     ['intento_examen_id' => $attemptId, 'pregunta_id' => $question->id],
                     [
-                        'opcion_pregunta_id' => $correctOptionId,
-                        'es_correcta' => true,
+                        'opcion_pregunta_id' => $optionId,
+                        'es_correcta' => $isCorrect,
                         'respondido_en' => $h->now(),
                     ]
                 );
