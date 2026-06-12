@@ -22,11 +22,9 @@ return function (array $ctx): void {
     }
 
     foreach ([
-        'Modulo 1 - Aula 101',
-        'Modulo 1 - Aula 102',
-        'Modulo 2 - Laboratorio 201',
-        'Modulo 2 - Laboratorio 202',
-        'Modulo 3 - Aula 301',
+        'Modulo 236 - Aula 11',
+        'Modulo 236 - Aula 12',
+        'Modulo 236 - Aula 13',
     ] as $classroom) {
         DB::table('aula')->updateOrInsert(
             ['ubicacion' => $classroom],
@@ -49,7 +47,7 @@ return function (array $ctx): void {
     }
 
     foreach ([
-        ['nombre' => 'Manana', 'hora_inicio' => '07:00', 'hora_fin' => '13:00'],
+        ['nombre' => 'Mañana', 'hora_inicio' => '07:00', 'hora_fin' => '13:00'],
         ['nombre' => 'Tarde', 'hora_inicio' => '14:00', 'hora_fin' => '20:00'],
     ] as $shift) {
         DB::table('turno')->updateOrInsert(

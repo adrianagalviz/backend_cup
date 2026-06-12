@@ -121,6 +121,49 @@ class ScheduleCatalogService
         return $this->findPeriod($id);
     }
 
+    public function updatePeriod(int $id, array $data): PeriodoModel
+    {
+        $period = $this->findPeriod($id);
+        $periodData = array_intersect_key($data, array_flip([
+            'turno_id',
+            'numero_periodo',
+            'hora_inicio',
+            'hora_fin',
+            'activo',
+        ]));
+
+        if ($periodData === []) {
+            return $period;
+        }
+
+        $shiftId = (int) ($periodData['turno_id'] ?? $period->turno_id);
+        $start = $periodData['hora_inicio'] ?? $period->hora_inicio;
+        $end = $periodData['hora_fin'] ?? $period->hora_fin;
+
+        if (array_key_exists('turno_id', $periodData)
+            || array_key_exists('hora_inicio', $periodData)
+            || array_key_exists('hora_fin', $periodData)) {
+            $this->ensurePeriodHasNoSchedules($period->id, 'No se puede cambiar el turno u horario de un periodo que ya tiene clases asignadas.');
+            $shift = $this->findShift($shiftId);
+            $this->ensureNinetyMinutes($start, $end);
+            $this->ensurePeriodInsideShift($shift, $start, $end);
+        }
+
+        $periodData['duracion_minutos'] = self::PERIOD_MINUTES;
+
+        DB::table('periodo')->where('id', $period->id)->update($periodData);
+
+        return $this->findPeriod($period->id);
+    }
+
+    public function deletePeriod(int $id): void
+    {
+        $period = $this->findPeriod($id);
+        $this->ensurePeriodHasNoSchedules($period->id, 'No se puede eliminar un periodo que ya tiene horarios asignados.');
+
+        DB::table('periodo')->where('id', $period->id)->delete();
+    }
+
     public function listPeriods(array $filters): LengthAwarePaginator
     {
         return PeriodoModel::query()
@@ -208,6 +251,13 @@ class ScheduleCatalogService
         $hasSchedules = DB::table('horario_clase')->where('turno_id', $shiftId)->exists();
 
         if ($hasSchedules) {
+            throw new RuntimeException($message);
+        }
+    }
+
+    private function ensurePeriodHasNoSchedules(int $periodId, string $message): void
+    {
+        if (DB::table('horario_clase')->where('periodo_id', $periodId)->exists()) {
             throw new RuntimeException($message);
         }
     }

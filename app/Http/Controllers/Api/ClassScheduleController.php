@@ -67,6 +67,40 @@ class ClassScheduleController extends Controller
         ]);
     }
 
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $validator = Validator::make($request->all(), $this->updateRules(), $this->messages());
+
+        if ($validator->fails()) {
+            return ValidationHelper::failed($validator);
+        }
+
+        try {
+            $schedule = $this->schedules->updateSchedule($id, $validator->validated());
+        } catch (ModelNotFoundException) {
+            return ApiResponse::error('Horario no encontrado o recurso relacionado inexistente.', [], 404);
+        } catch (RuntimeException $exception) {
+            return ApiResponse::error($exception->getMessage(), [], 422);
+        }
+
+        return ApiResponse::success('Horario de clase actualizado correctamente.', [
+            'horario' => $this->schedules->formatSchedule($schedule),
+        ]);
+    }
+
+    public function destroy(int $id): JsonResponse
+    {
+        try {
+            $this->schedules->deleteSchedule($id);
+        } catch (ModelNotFoundException) {
+            return ApiResponse::error('Horario no encontrado.', [], 404);
+        } catch (RuntimeException $exception) {
+            return ApiResponse::error($exception->getMessage(), [], 422);
+        }
+
+        return ApiResponse::success('Horario de clase eliminado correctamente.');
+    }
+
     public function teacherSchedules(Request $request, int $id): JsonResponse
     {
         $user = $request->attributes->get('usuario_autenticado');
@@ -133,6 +167,21 @@ class ClassScheduleController extends Controller
             'docente_id' => ['nullable', 'integer', 'exists:docente,id'],
             'activo' => ['nullable', Rule::in(['true', 'false', '1', '0'])],
             'por_pagina' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ];
+    }
+
+    private function updateRules(): array
+    {
+        return [
+            'gestion_academica_id' => ['sometimes', 'integer', 'exists:gestion_academica,id'],
+            'grupo_id' => ['sometimes', 'integer', 'exists:grupo,id'],
+            'materia_id' => ['sometimes', 'integer', 'exists:materia,id'],
+            'aula_id' => ['sometimes', 'integer', 'exists:aula,id'],
+            'dia_id' => ['sometimes', 'integer', 'exists:dia,id'],
+            'turno_id' => ['sometimes', 'integer', 'exists:turno,id'],
+            'periodo_id' => ['sometimes', 'integer', 'exists:periodo,id'],
+            'docente_id' => ['sometimes', 'integer', 'exists:docente,id'],
+            'activo' => ['sometimes', 'boolean'],
         ];
     }
 

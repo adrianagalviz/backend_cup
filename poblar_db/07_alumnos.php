@@ -17,6 +17,13 @@ return function (array $ctx): void {
         '1001006' => 'Grupo C',
     ];
 
+    $groups = ['Grupo A', 'Grupo B', 'Grupo C'];
+
+    for ($i = 1; $i <= 150; $i++) {
+        $ci = '2000'.str_pad((string) $i, 3, '0', STR_PAD_LEFT);
+        $students[$ci] = $groups[($i - 1) % count($groups)];
+    }
+
     foreach ($students as $ci => $groupName) {
         $personaId = $h->id('persona', 'cedula_identidad', $ci);
         $postulante = DB::table('postulante')->where('persona_id', $personaId)->first();

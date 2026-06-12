@@ -12,7 +12,6 @@ return function (array $ctx): void {
         ['ci' => '8100002', 'nombres' => 'Jorge', 'ap' => 'Menacho', 'am' => 'Rivero', 'materia' => 'Matematicas'],
         ['ci' => '8100003', 'nombres' => 'Patricia', 'ap' => 'Suarez', 'am' => 'Lopez', 'materia' => 'Computacion'],
         ['ci' => '8100004', 'nombres' => 'Roberto', 'ap' => 'Arias', 'am' => 'Campos', 'materia' => 'Ingles'],
-        ['ci' => '8100005', 'nombres' => 'Andrea', 'ap' => 'Vaca', 'am' => 'Justiniano', 'materia' => 'Apoyo Academico'],
     ] as $index => $teacher) {
         $slug = strtolower(str_replace(' ', '.', $teacher['nombres'].'.'.$teacher['ap']));
         $personaId = $h->person([

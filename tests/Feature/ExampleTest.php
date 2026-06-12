@@ -441,9 +441,53 @@ class ExampleTest extends TestCase
         ]);
     }
 
+    public function test_period_update_requires_authentication_token(): void
+    {
+        $response = $this->putJson('/api/v1/periodos/1', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_period_delete_requires_authentication_token(): void
+    {
+        $response = $this->deleteJson('/api/v1/periodos/1');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
     public function test_schedules_list_requires_authentication_token(): void
     {
         $response = $this->getJson('/api/v1/horarios');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_schedule_update_requires_authentication_token(): void
+    {
+        $response = $this->putJson('/api/v1/horarios/1', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_schedule_delete_requires_authentication_token(): void
+    {
+        $response = $this->deleteJson('/api/v1/horarios/1');
 
         $response->assertStatus(401);
         $response->assertJson([

@@ -57,6 +57,94 @@ class ClassScheduleService
         });
     }
 
+    public function updateSchedule(int $id, array $data): HorarioClaseModel
+    {
+        return DB::transaction(function () use ($id, $data): HorarioClaseModel {
+            $schedule = $this->findSchedule($id);
+
+            if (array_keys($data) === ['activo']) {
+                DB::table('horario_clase')->where('id', $schedule->id)->update([
+                    'activo' => (bool) $data['activo'],
+                ]);
+
+                DB::table('asignacion_docente')->where('horario_clase_id', $schedule->id)->update([
+                    'activo' => (bool) $data['activo'],
+                ]);
+
+                return $this->findSchedule($schedule->id);
+            }
+
+            $merged = [
+                'gestion_academica_id' => $data['gestion_academica_id'] ?? $schedule->gestion_academica_id,
+                'grupo_id' => $data['grupo_id'] ?? $schedule->grupo_id,
+                'materia_id' => $data['materia_id'] ?? $schedule->materia_id,
+                'aula_id' => $data['aula_id'] ?? $schedule->aula_id,
+                'dia_id' => $data['dia_id'] ?? $schedule->dia_id,
+                'turno_id' => $data['turno_id'] ?? $schedule->turno_id,
+                'periodo_id' => $data['periodo_id'] ?? $schedule->periodo_id,
+                'docente_id' => $data['docente_id'] ?? $schedule->asignacionesDocentes->first()?->docente_id,
+                'activo' => $data['activo'] ?? $schedule->activo,
+            ];
+
+            $group = GrupoModel::query()->findOrFail($merged['grupo_id']);
+            $teacher = DocenteModel::query()->findOrFail($merged['docente_id']);
+            $period = PeriodoModel::query()->findOrFail($merged['periodo_id']);
+
+            $this->validateEntities($merged, $group, $teacher, $period);
+            $this->validateScheduleConflicts($merged, $period->hora_inicio, $period->hora_fin, $schedule->id);
+
+            DB::table('horario_clase')->where('id', $schedule->id)->update([
+                'gestion_academica_id' => $merged['gestion_academica_id'],
+                'grupo_id' => $merged['grupo_id'],
+                'materia_id' => $merged['materia_id'],
+                'aula_id' => $merged['aula_id'],
+                'dia_id' => $merged['dia_id'],
+                'turno_id' => $merged['turno_id'],
+                'periodo_id' => $merged['periodo_id'],
+                'hora_inicio' => $period->hora_inicio,
+                'hora_fin' => $period->hora_fin,
+                'activo' => (bool) $merged['activo'],
+            ]);
+
+            DB::table('asignacion_docente')->where('horario_clase_id', $schedule->id)->update([
+                'docente_id' => $teacher->id,
+                'materia_id' => $merged['materia_id'],
+                'grupo_id' => $group->id,
+                'gestion_academica_id' => $merged['gestion_academica_id'],
+                'activo' => (bool) $merged['activo'],
+            ]);
+
+            if (! DB::table('asignacion_docente')->where('horario_clase_id', $schedule->id)->exists()) {
+                DB::table('asignacion_docente')->insert([
+                    'docente_id' => $teacher->id,
+                    'materia_id' => $merged['materia_id'],
+                    'grupo_id' => $group->id,
+                    'horario_clase_id' => $schedule->id,
+                    'gestion_academica_id' => $merged['gestion_academica_id'],
+                    'activo' => (bool) $merged['activo'],
+                    'asignado_en' => now(),
+                ]);
+            }
+
+            return $this->findSchedule($schedule->id);
+        });
+    }
+
+    public function deleteSchedule(int $id): void
+    {
+        $schedule = $this->findSchedule($id);
+
+        if (DB::table('asistencia_docente')->where('horario_clase_id', $schedule->id)->exists()
+            || DB::table('asistencia_alumno')->where('horario_clase_id', $schedule->id)->exists()) {
+            throw new RuntimeException('No se puede eliminar un horario que ya tiene asistencias registradas. Desactivalo para conservar el historial.');
+        }
+
+        DB::transaction(function () use ($schedule): void {
+            DB::table('asignacion_docente')->where('horario_clase_id', $schedule->id)->delete();
+            DB::table('horario_clase')->where('id', $schedule->id)->delete();
+        });
+    }
+
     public function listSchedules(array $filters): LengthAwarePaginator
     {
         return $this->scheduleQuery()
@@ -214,7 +302,7 @@ class ClassScheduleService
         }
     }
 
-    private function validateScheduleConflicts(array $data, string $start, string $end): void
+    private function validateScheduleConflicts(array $data, string $start, string $end, ?int $ignoreScheduleId = null): void
     {
         $base = DB::table('horario_clase')
             ->where('gestion_academica_id', $data['gestion_academica_id'])
@@ -222,6 +310,10 @@ class ClassScheduleService
             ->where('activo', true)
             ->where('hora_inicio', '<', $end)
             ->where('hora_fin', '>', $start);
+
+        if ($ignoreScheduleId) {
+            $base->where('id', '<>', $ignoreScheduleId);
+        }
 
         if ((clone $base)->where('grupo_id', $data['grupo_id'])->exists()) {
             throw new RuntimeException('El grupo ya tiene clase en ese dia y horario.');
@@ -240,6 +332,7 @@ class ClassScheduleService
             ->where('horario_clase.dia_id', $data['dia_id'])
             ->where('horario_clase.hora_inicio', '<', $end)
             ->where('horario_clase.hora_fin', '>', $start)
+            ->when($ignoreScheduleId, fn ($query) => $query->where('horario_clase.id', '<>', $ignoreScheduleId))
             ->exists();
 
         if ($teacherConflict) {

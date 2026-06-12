@@ -168,6 +168,55 @@ class ScheduleCatalogController extends Controller
         );
     }
 
+    public function updatePeriod(Request $request, int $id): JsonResponse
+    {
+        $turnoId = $request->input('turno_id');
+
+        $validator = Validator::make($request->all(), [
+            'turno_id' => ['sometimes', 'integer', 'exists:turno,id'],
+            'numero_periodo' => [
+                'sometimes',
+                'integer',
+                'min:1',
+                Rule::unique('periodo', 'numero_periodo')
+                    ->ignore($id)
+                    ->where(fn ($query) => $query->where('turno_id', $turnoId ?: PeriodoModel::query()->whereKey($id)->value('turno_id'))),
+            ],
+            'hora_inicio' => ['sometimes', 'date_format:H:i'],
+            'hora_fin' => ['sometimes', 'date_format:H:i'],
+            'activo' => ['sometimes', 'boolean'],
+        ], $this->messages());
+
+        if ($validator->fails()) {
+            return ValidationHelper::failed($validator);
+        }
+
+        try {
+            $period = $this->catalog->updatePeriod($id, $validator->validated());
+        } catch (ModelNotFoundException) {
+            return ApiResponse::error('Periodo no encontrado.', [], 404);
+        } catch (RuntimeException $exception) {
+            return ApiResponse::error($exception->getMessage(), [], 422);
+        }
+
+        return ApiResponse::success('Periodo actualizado correctamente.', [
+            'periodo' => $this->catalog->formatPeriod($period),
+        ]);
+    }
+
+    public function deletePeriod(int $id): JsonResponse
+    {
+        try {
+            $this->catalog->deletePeriod($id);
+        } catch (ModelNotFoundException) {
+            return ApiResponse::error('Periodo no encontrado.', [], 404);
+        } catch (RuntimeException $exception) {
+            return ApiResponse::error($exception->getMessage(), [], 422);
+        }
+
+        return ApiResponse::success('Periodo eliminado correctamente.');
+    }
+
     private function paginatedResponse(string $message, $paginator, callable $formatter): JsonResponse
     {
         return response()->json([

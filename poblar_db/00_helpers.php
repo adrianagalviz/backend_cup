@@ -103,8 +103,8 @@ $helpers = new class {
 return [
     'h' => $helpers,
     'passwords' => [
-        'admin' => 'admin12345',
-        'docentes' => 'docente12345',
-        'alumnos' => 'alumno12345',
+        'admin' => 'admin123',
+        'docentes' => 'admin123',
+        'alumnos' => 'admin123',
     ],
 ];

@@ -118,9 +118,13 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/periodos', [ScheduleCatalogController::class, 'periods']);
         Route::post('/periodos', [ScheduleCatalogController::class, 'createPeriod']);
+        Route::put('/periodos/{id}', [ScheduleCatalogController::class, 'updatePeriod'])->whereNumber('id');
+        Route::delete('/periodos/{id}', [ScheduleCatalogController::class, 'deletePeriod'])->whereNumber('id');
 
         Route::get('/horarios', [ClassScheduleController::class, 'index']);
         Route::post('/horarios', [ClassScheduleController::class, 'store']);
+        Route::put('/horarios/{id}', [ClassScheduleController::class, 'update'])->whereNumber('id');
+        Route::delete('/horarios/{id}', [ClassScheduleController::class, 'destroy'])->whereNumber('id');
 
         Route::get('/asignaciones', [TeacherAssignmentController::class, 'index']);
         Route::post('/asignaciones/docente-materia-grupo', [TeacherAssignmentController::class, 'store']);

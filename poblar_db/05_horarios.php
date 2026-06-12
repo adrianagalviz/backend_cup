@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\DB;
 return function (array $ctx): void {
     $h = $ctx['h'];
     $gestionId = $h->id('gestion_academica', 'nombre', '2026-1');
-    $turnoMananaId = $h->id('turno', 'nombre', 'Manana');
+    $turnoMananaId = $h->id('turno', 'nombre', 'Mañana');
     $turnoTardeId = $h->id('turno', 'nombre', 'Tarde');
     $fisica = 'F'."\u{00ED}".'sica';
     $matematicas = 'Matem'."\u{00E1}".'ticas';
@@ -24,18 +24,18 @@ return function (array $ctx): void {
         ->value('id');
 
     $schedules = [
-        ['Grupo A', $fisica, 'Modulo 1 - Aula 101', 'Lunes', $turnoMananaId, 1, $docenteId('8100001')],
-        ['Grupo A', $matematicas, 'Modulo 1 - Aula 101', 'Lunes', $turnoMananaId, 2, $docenteId('8100002')],
-        ['Grupo A', $computacion, 'Modulo 2 - Laboratorio 201', 'Martes', $turnoMananaId, 1, $docenteId('8100003')],
-        ['Grupo A', $ingles, 'Modulo 1 - Aula 102', 'Martes', $turnoMananaId, 2, $docenteId('8100004')],
-        ['Grupo B', $matematicas, 'Modulo 1 - Aula 102', 'Lunes', $turnoMananaId, 1, $docenteId('8100002')],
-        ['Grupo B', $fisica, 'Modulo 2 - Laboratorio 202', 'Lunes', $turnoMananaId, 2, $docenteId('8100001')],
-        ['Grupo B', $ingles, 'Modulo 1 - Aula 101', 'Miercoles', $turnoMananaId, 1, $docenteId('8100004')],
-        ['Grupo B', $computacion, 'Modulo 2 - Laboratorio 201', 'Miercoles', $turnoMananaId, 2, $docenteId('8100003')],
-        ['Grupo C', $fisica, 'Modulo 3 - Aula 301', 'Jueves', $turnoTardeId, 1, $docenteId('8100001')],
-        ['Grupo C', $matematicas, 'Modulo 3 - Aula 301', 'Jueves', $turnoTardeId, 2, $docenteId('8100002')],
-        ['Grupo C', $computacion, 'Modulo 2 - Laboratorio 202', 'Viernes', $turnoTardeId, 1, $docenteId('8100003')],
-        ['Grupo C', $ingles, 'Modulo 1 - Aula 102', 'Viernes', $turnoTardeId, 2, $docenteId('8100004')],
+        ['Grupo A', $fisica, 'Modulo 236 - Aula 11', 'Lunes', $turnoMananaId, 1, $docenteId('8100001')],
+        ['Grupo A', $matematicas, 'Modulo 236 - Aula 11', 'Lunes', $turnoMananaId, 2, $docenteId('8100002')],
+        ['Grupo A', $computacion, 'Modulo 236 - Aula 11', 'Martes', $turnoMananaId, 1, $docenteId('8100003')],
+        ['Grupo A', $ingles, 'Modulo 236 - Aula 11', 'Martes', $turnoMananaId, 2, $docenteId('8100004')],
+        ['Grupo B', $matematicas, 'Modulo 236 - Aula 11', 'Lunes', $turnoMananaId, 1, $docenteId('8100002')],
+        ['Grupo B', $fisica, 'Modulo 236 - Aula 11', 'Lunes', $turnoMananaId, 2, $docenteId('8100001')],
+        ['Grupo B', $ingles, 'Modulo 236 - Aula 11', 'Miercoles', $turnoMananaId, 1, $docenteId('8100004')],
+        ['Grupo B', $computacion, 'Modulo 236 - Aula 11', 'Miercoles', $turnoMananaId, 2, $docenteId('8100003')],
+        ['Grupo C', $fisica, 'Modulo 236 - Aula 11', 'Jueves', $turnoTardeId, 1, $docenteId('8100001')],
+        ['Grupo C', $matematicas, 'Modulo 236 - Aula 11', 'Jueves', $turnoTardeId, 2, $docenteId('8100002')],
+        ['Grupo C', $computacion, 'Modulo 236 - Aula 11', 'Viernes', $turnoTardeId, 1, $docenteId('8100003')],
+        ['Grupo C', $ingles, 'Modulo 236 - Aula 11', 'Viernes', $turnoTardeId, 2, $docenteId('8100004')],
     ];
 
     foreach ($schedules as [$grupo, $materia, $aula, $dia, $turnoId, $numeroPeriodo, $docente]) {

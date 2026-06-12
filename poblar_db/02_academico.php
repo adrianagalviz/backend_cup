@@ -26,10 +26,10 @@ return function (array $ctx): void {
     $gestionId = $h->id('gestion_academica', 'nombre', '2026-1');
 
     foreach ([
-        ['codigo' => 'INF', 'nombre' => 'Ingenieria Informatica', 'descripcion' => 'Carrera de Ingenieria Informatica.'],
-        ['codigo' => 'SIS', 'nombre' => 'Ingenieria de Sistemas', 'descripcion' => 'Carrera de Ingenieria de Sistemas.'],
-        ['codigo' => 'RED', 'nombre' => 'Ingenieria en Redes y Telecomunicaciones', 'descripcion' => 'Carrera de Redes y Telecomunicaciones.'],
-        ['codigo' => 'ROB', 'nombre' => 'Ingenieria Robotica', 'descripcion' => 'Carrera de Robotica.'],
+        ['codigo' => '187-3', 'nombre' => 'Ingenieria Informatica', 'descripcion' => 'Carrera de Ingenieria Informatica.'],
+        ['codigo' => '187-4', 'nombre' => 'Ingenieria de Sistemas', 'descripcion' => 'Carrera de Ingenieria de Sistemas.'],
+        ['codigo' => '187-5', 'nombre' => 'Ingenieria en Redes y Telecomunicaciones', 'descripcion' => 'Carrera de Redes y Telecomunicaciones.'],
+        ['codigo' => '187-6', 'nombre' => 'Ingenieria Robotica', 'descripcion' => 'Carrera de Robotica.'],
     ] as $career) {
         DB::table('carrera')->updateOrInsert(
             ['codigo' => $career['codigo']],
@@ -45,10 +45,10 @@ return function (array $ctx): void {
     }
 
     foreach ([
-        'INF' => 35,
-        'SIS' => 30,
-        'RED' => 20,
-        'ROB' => 15,
+        '187-3' => 35,
+        '187-4' => 30,
+        '187-5' => 20,
+        '187-6' => 15,
     ] as $careerCode => $quota) {
         DB::table('cupo_carrera')->updateOrInsert(
             [
