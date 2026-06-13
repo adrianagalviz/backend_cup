@@ -33,7 +33,7 @@ El seeder maestro ejecuta los archivos en este orden:
 | Administrador | `admin.academico` | `admin12345` |
 | Administrador | `admin.reportes` | `admin12345` |
 | Docente | `docente_8100001` a `docente_8100005` | `docente12345` |
-| Alumno | `alumno_202611001001` a `alumno_202611001006` | `alumno12345` |
+| Alumno | codigo de alumno, por ejemplo `202612000137` | CI del alumno, por ejemplo `2000137` |
 
 Los alumnos tambien tienen `codigo_acceso` con formato `anio + gestion + cedula`.
 

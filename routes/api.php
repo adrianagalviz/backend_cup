@@ -147,6 +147,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/examenes', [ExamController::class, 'index']);
         Route::post('/examenes', [ExamController::class, 'store']);
+        Route::get('/examenes/{id}', [ExamController::class, 'show'])->whereNumber('id');
         Route::post('/examenes/{id}/materias', [ExamController::class, 'subjects'])->whereNumber('id');
         Route::post('/examenes/{id}/preguntas', [ExamController::class, 'question'])->whereNumber('id');
         Route::patch('/examenes/{id}/habilitar', [ExamController::class, 'enable'])->whereNumber('id');

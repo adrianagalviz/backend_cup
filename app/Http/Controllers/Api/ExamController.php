@@ -70,6 +70,19 @@ class ExamController extends Controller
         ], 201);
     }
 
+    public function show(int $id): JsonResponse
+    {
+        try {
+            $exam = $this->exams->findExam($id);
+        } catch (ModelNotFoundException) {
+            return ApiResponse::error('Examen no encontrado.', [], 404);
+        }
+
+        return ApiResponse::success('Examen obtenido correctamente.', [
+            'examen' => $this->exams->formatExam($exam),
+        ]);
+    }
+
     public function subjects(Request $request, int $id): JsonResponse
     {
         $validator = Validator::make($request->all(), [

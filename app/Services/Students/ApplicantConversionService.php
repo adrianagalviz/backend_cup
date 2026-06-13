@@ -33,7 +33,7 @@ class ApplicantConversionService
                 'nombre_usuario' => 'alumno_'.$studentCode,
                 'codigo_acceso' => $studentCode,
                 'correo_verificado' => false,
-                'password_hash' => null,
+                'password_hash' => password_hash($this->defaultStudentPassword($postulante), PASSWORD_BCRYPT),
                 'activo' => true,
                 'creado_por_usuario_id' => $administrator->id,
                 'creado_en' => now(),
@@ -113,6 +113,17 @@ class ApplicantConversionService
         }
 
         return $code;
+    }
+
+    private function defaultStudentPassword(PostulanteModel $postulante): string
+    {
+        $ci = preg_replace('/\D/', '', (string) $postulante->persona?->cedula_identidad);
+
+        if (! $ci) {
+            throw new RuntimeException('El postulante no tiene cedula valida para usar como contrasena inicial.');
+        }
+
+        return $ci;
     }
 
     public function findStudent(int $id): AlumnoModel

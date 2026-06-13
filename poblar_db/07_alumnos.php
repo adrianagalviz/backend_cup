@@ -35,7 +35,7 @@ return function (array $ctx): void {
             'rol_id' => $studentRoleId,
             'nombre_usuario' => 'alumno_'.$code,
             'codigo_acceso' => $code,
-            'password' => $ctx['passwords']['alumnos'],
+            'password' => $ci,
             'correo_verificado' => false,
             'creado_por_usuario_id' => $adminId,
         ]);

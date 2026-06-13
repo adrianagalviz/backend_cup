@@ -40,13 +40,15 @@ class UserAuthenticationService
         return $this->authenticatedResponse($usuario);
     }
 
-    public function loginStudentByCode(string $codigoAlumno, ?string $password = null): array
+    public function loginStudentByCode(string $codigoAlumno, string $password): array
     {
         $usuario = UsuarioModel::query()
             ->with(['rol', 'persona', 'alumno'])
-            ->where('codigo_acceso', $codigoAlumno)
-            ->orWhereHas('alumno', function ($query) use ($codigoAlumno): void {
-                $query->where('codigo_alumno', $codigoAlumno);
+            ->where(function ($query) use ($codigoAlumno): void {
+                $query->where('codigo_acceso', $codigoAlumno)
+                    ->orWhereHas('alumno', function ($studentQuery) use ($codigoAlumno): void {
+                        $studentQuery->where('codigo_alumno', $codigoAlumno);
+                    });
             })
             ->first();
 
@@ -54,7 +56,7 @@ class UserAuthenticationService
             throw new RuntimeException('Codigo de alumno invalido o usuario inactivo.');
         }
 
-        if ($usuario->password_hash && (!$password || !password_verify($password, $usuario->password_hash))) {
+        if (!$this->validStudentPassword($usuario, $password)) {
             throw new RuntimeException('Credenciales invalidas.');
         }
 
@@ -103,6 +105,44 @@ class UserAuthenticationService
             'tipo_token' => 'Bearer',
             'usuario' => $this->minimalUserData($usuario),
         ];
+    }
+
+    private function validStudentPassword(UsuarioModel $usuario, string $password): bool
+    {
+        if ($usuario->password_hash) {
+            if (password_verify($password, $usuario->password_hash)) {
+                return true;
+            }
+
+            return $this->passwordMatchesDefaultCi($usuario, $password);
+        }
+
+        return $this->passwordMatchesDefaultCi($usuario, $password);
+    }
+
+    private function passwordMatchesDefaultCi(UsuarioModel $usuario, string $password): bool
+    {
+        $defaultPassword = $this->defaultStudentPassword($usuario);
+
+        if (!hash_equals($defaultPassword, $password)) {
+            return false;
+        }
+
+        $usuario->password_hash = password_hash($defaultPassword, PASSWORD_BCRYPT);
+        $usuario->save();
+
+        return true;
+    }
+
+    private function defaultStudentPassword(UsuarioModel $usuario): string
+    {
+        $ci = preg_replace('/\D/', '', (string) $usuario->persona?->cedula_identidad);
+
+        if (!$ci) {
+            throw new RuntimeException('El alumno no tiene cedula valida para usar como contrasena inicial.');
+        }
+
+        return $ci;
     }
 
     private function minimalUserData(UsuarioModel $usuario): array

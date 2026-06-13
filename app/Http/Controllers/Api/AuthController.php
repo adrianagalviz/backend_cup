@@ -51,9 +51,10 @@ class AuthController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'codigo_alumno' => ['required', 'string'],
-            'password' => ['nullable', 'string'],
+            'password' => ['required', 'string'],
         ], [
             'codigo_alumno.required' => 'El codigo del alumno es obligatorio.',
+            'password.required' => 'La contrasena es obligatoria.',
         ]);
 
         if ($validator->fails()) {
@@ -63,7 +64,7 @@ class AuthController extends Controller
         try {
             $datos = $this->auth->loginStudentByCode(
                 (string) $request->input('codigo_alumno'),
-                $request->filled('password') ? (string) $request->input('password') : null
+                (string) $request->input('password')
             );
 
             return ApiResponse::success('Inicio de sesion de alumno correcto.', $datos);
