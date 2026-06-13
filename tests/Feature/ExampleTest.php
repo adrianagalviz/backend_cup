@@ -331,6 +331,50 @@ class ExampleTest extends TestCase
         ]);
     }
 
+    public function test_students_list_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/alumnos');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_student_detail_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/alumnos/1');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_requirements_list_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/requisitos');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_requirement_validation_requires_authentication_token(): void
+    {
+        $response = $this->patchJson('/api/v1/requisitos/1/validar', []);
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
     public function test_subjects_require_authentication_token(): void
     {
         $response = $this->getJson('/api/v1/materias');

@@ -14,10 +14,12 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ExamController;
 use App\Http\Controllers\Api\GradeAverageController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\RequirementController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\ScheduleCatalogController;
 use App\Http\Controllers\Api\StudentAttendanceController;
 use App\Http\Controllers\Api\StudentExamController;
+use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\TeacherAssignmentController;
 use App\Http\Controllers\Api\TeacherAttendanceController;
 use App\Http\Controllers\Api\TeacherController;
@@ -94,6 +96,12 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/docentes/{id}', [TeacherController::class, 'show'])->whereNumber('id');
         Route::put('/docentes/{id}', [TeacherController::class, 'update'])->whereNumber('id');
         Route::delete('/docentes/{id}', [TeacherController::class, 'destroy'])->whereNumber('id');
+
+        Route::get('/requisitos', [RequirementController::class, 'index']);
+        Route::patch('/requisitos/{id}/validar', [RequirementController::class, 'validateRequirement'])->whereNumber('id');
+
+        Route::get('/alumnos', [StudentController::class, 'index']);
+        Route::get('/alumnos/{id}', [StudentController::class, 'show'])->whereNumber('id');
 
         Route::get('/materias', [ClassroomGroupController::class, 'subjects']);
 

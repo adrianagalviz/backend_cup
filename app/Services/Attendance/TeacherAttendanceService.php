@@ -61,13 +61,16 @@ class TeacherAttendanceService
             }
 
             $state = $this->entryState($schedule, $now);
+            $automaticExit = $this->dateTimeFor($now, $schedule->hora_fin);
 
             if ($existing) {
                 DB::table('asistencia_docente')
                     ->where('id', $existing->id)
                     ->update([
                         'hora_entrada' => $now,
+                        'hora_salida' => $automaticExit,
                         'estado_entrada' => $state,
+                        'estado_salida' => 'finalizado',
                         'marcado_por_usuario_id' => $user->id,
                         'actualizado_en' => now(),
                     ]);
@@ -80,8 +83,9 @@ class TeacherAttendanceService
                 'horario_clase_id' => $schedule->id,
                 'fecha' => $now->toDateString(),
                 'hora_entrada' => $now,
+                'hora_salida' => $automaticExit,
                 'estado_entrada' => $state,
-                'estado_salida' => 'pendiente',
+                'estado_salida' => 'finalizado',
                 'marcado_por_usuario_id' => $user->id,
                 'creado_en' => now(),
             ]);

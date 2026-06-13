@@ -134,12 +134,9 @@ class ClassScheduleService
     {
         $schedule = $this->findSchedule($id);
 
-        if (DB::table('asistencia_docente')->where('horario_clase_id', $schedule->id)->exists()
-            || DB::table('asistencia_alumno')->where('horario_clase_id', $schedule->id)->exists()) {
-            throw new RuntimeException('No se puede eliminar un horario que ya tiene asistencias registradas. Desactivalo para conservar el historial.');
-        }
-
         DB::transaction(function () use ($schedule): void {
+            DB::table('asistencia_alumno')->where('horario_clase_id', $schedule->id)->delete();
+            DB::table('asistencia_docente')->where('horario_clase_id', $schedule->id)->delete();
             DB::table('asignacion_docente')->where('horario_clase_id', $schedule->id)->delete();
             DB::table('horario_clase')->where('id', $schedule->id)->delete();
         });
