@@ -222,6 +222,24 @@ class ReportController extends Controller
         return ApiResponse::success('Reporte exportado correctamente.', $result);
     }
 
+    public function downloadFile(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $path = $request->query('ruta');
+
+        if (!$path || !str_starts_with($path, 'storage/reports/') || str_contains($path, '..')) {
+            return ApiResponse::error('Ruta de archivo no permitida o incorrecta.', [], 403);
+        }
+
+        $diskPath = str_replace('storage/', '', $path);
+        $disk = \Illuminate\Support\Facades\Storage::disk('public');
+
+        if (!$disk->exists($diskPath)) {
+            return ApiResponse::error('El archivo no existe en el almacenamiento.', [], 404);
+        }
+
+        return response()->download($disk->path($diskPath));
+    }
+
     public function voiceCommand(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [

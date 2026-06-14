@@ -177,6 +177,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/reportes/asistencia-docentes', [ReportController::class, 'teacherAttendance']);
         Route::get('/reportes/asistencia-alumnos', [ReportController::class, 'studentAttendance']);
         Route::post('/reportes/comando-voz', [ReportController::class, 'voiceCommand']);
+        Route::get('/reportes/descargar-archivo', [ReportController::class, 'downloadFile']);
         Route::get('/reportes/{tipo}/exportar', [ReportController::class, 'export']);
 
         Route::get('/cargas', [BulkLoadController::class, 'index']);
