@@ -42,7 +42,7 @@ class UserController extends Controller
     public function index(Request $request): JsonResponse
     {
         $validator = Validator::make($request->query(), [
-            'rol' => ['nullable', Rule::in(['administrador', 'docente', 'alumno'])],
+            'rol' => ['nullable', Rule::exists('rol', 'nombre')],
             'estado' => ['nullable', Rule::in(['true', 'false', '1', '0'])],
             'buscar' => ['nullable', 'string'],
             'por_pagina' => ['nullable', 'integer', 'min:1', 'max:100'],

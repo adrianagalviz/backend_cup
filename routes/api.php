@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\ExamController;
 use App\Http\Controllers\Api\GradeAverageController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\RequirementController;
+use App\Http\Controllers\Api\RolePermissionController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\ScheduleCatalogController;
 use App\Http\Controllers\Api\StudentAttendanceController;
@@ -47,6 +48,13 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/{id}', [UserController::class, 'show'])->whereNumber('id');
         Route::put('/{id}', [UserController::class, 'update'])->whereNumber('id');
         Route::patch('/{id}/estado', [UserController::class, 'status'])->whereNumber('id');
+    });
+
+    Route::middleware(['auth.internal', 'role:administrador'])->prefix('roles-permisos')->group(function (): void {
+        Route::get('/', [RolePermissionController::class, 'index']);
+        Route::post('/roles', [RolePermissionController::class, 'store']);
+        Route::put('/roles/{id}', [RolePermissionController::class, 'update'])->whereNumber('id');
+        Route::patch('/roles/{id}/estado', [RolePermissionController::class, 'status'])->whereNumber('id');
     });
 
     Route::post('/postulantes', [ApplicantController::class, 'store']);
