@@ -152,6 +152,10 @@ class UserAuthenticationService
             'nombre_usuario' => $usuario->nombre_usuario,
             'rol' => $usuario->rol?->nombre,
             'activo' => $usuario->activo,
+            'configuracion_visual' => [
+                'paleta' => $usuario->paleta_visual ?: 'azul',
+                'modo' => $usuario->modo_visual ?: 'claro',
+            ],
             'persona' => [
                 'id' => $usuario->persona?->id,
                 'nombres' => $usuario->persona?->nombres,

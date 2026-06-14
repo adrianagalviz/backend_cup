@@ -22,6 +22,8 @@ class UsuarioModel extends Model
         'firebase_uid',
         'password_hash',
         'activo',
+        'paleta_visual',
+        'modo_visual',
         'ultimo_inicio_sesion',
         'creado_por_usuario_id',
     ];

@@ -10,6 +10,7 @@ use App\Services\Auth\UserAuthenticationService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
 use RuntimeException;
 
@@ -116,6 +117,7 @@ class AuthController extends Controller
                 'codigo_acceso' => $usuario->codigo_acceso,
                 'correo_verificado' => $usuario->correo_verificado,
                 'activo' => $usuario->activo,
+                'configuracion_visual' => $this->visualConfig($usuario),
             ],
             'rol' => [
                 'id' => $usuario->rol?->id,
@@ -135,6 +137,35 @@ class AuthController extends Controller
         ]);
     }
 
+    public function actualizarConfiguracionVisual(Request $request): JsonResponse
+    {
+        $usuario = $request->attributes->get('usuario_autenticado');
+
+        if (!$usuario instanceof UsuarioModel) {
+            return ApiResponse::error('Usuario autenticado requerido.', [], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'paleta' => ['required', 'string', Rule::in(['rosa', 'verde', 'amarillo', 'azul', 'lila', 'rojo', 'gris'])],
+            'modo' => ['required', 'string', Rule::in(['claro', 'oscuro'])],
+        ], [
+            'paleta.in' => 'La paleta seleccionada no es valida.',
+            'modo.in' => 'El modo seleccionado no es valido.',
+        ]);
+
+        if ($validator->fails()) {
+            return ValidationHelper::failed($validator);
+        }
+
+        $usuario->paleta_visual = (string) $request->input('paleta');
+        $usuario->modo_visual = (string) $request->input('modo');
+        $usuario->save();
+
+        return ApiResponse::success('Configuracion visual actualizada correctamente.', [
+            'configuracion_visual' => $this->visualConfig($usuario),
+        ]);
+    }
+
     private function roleSpecificData(UsuarioModel $usuario): array
     {
         return match ($usuario->rol?->nombre) {
@@ -149,5 +180,13 @@ class AuthController extends Controller
             ],
             default => [],
         };
+    }
+
+    private function visualConfig(UsuarioModel $usuario): array
+    {
+        return [
+            'paleta' => $usuario->paleta_visual ?: 'azul',
+            'modo' => $usuario->modo_visual ?: 'claro',
+        ];
     }
 }
