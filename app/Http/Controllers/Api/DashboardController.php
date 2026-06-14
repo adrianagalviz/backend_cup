@@ -71,6 +71,9 @@ class DashboardController extends Controller
     {
         return [
             'gestion_academica_id' => ['nullable', 'integer', 'min:1'],
+            'carrera_id' => ['nullable', 'integer', 'min:1'],
+            'fecha_desde' => ['nullable', 'date'],
+            'fecha_hasta' => ['nullable', 'date', 'after_or_equal:fecha_desde'],
         ];
     }
 
@@ -79,6 +82,11 @@ class DashboardController extends Controller
         return [
             'gestion_academica_id.integer' => 'La gestion academica debe ser numerica.',
             'gestion_academica_id.min' => 'La gestion academica debe ser valida.',
+            'carrera_id.integer' => 'La carrera debe ser numerica.',
+            'carrera_id.min' => 'La carrera debe ser valida.',
+            'fecha_desde.date' => 'La fecha desde debe ser valida.',
+            'fecha_hasta.date' => 'La fecha hasta debe ser valida.',
+            'fecha_hasta.after_or_equal' => 'La fecha hasta debe ser igual o posterior a la fecha desde.',
         ];
     }
 }

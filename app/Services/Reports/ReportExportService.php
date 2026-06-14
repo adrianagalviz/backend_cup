@@ -8,6 +8,7 @@ use App\Models\PromedioFinalModel;
 use App\Models\UsuarioModel;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 
 class ReportExportService
@@ -45,13 +46,15 @@ class ReportExportService
         $rows = $this->rows($type, $filters);
         $extension = $format === 'pdf' ? 'pdf' : 'xlsx';
         $filename = $this->filename($type, $extension);
-        $directory = storage_path('reports');
+        $disk = Storage::disk('public');
+        $directory = 'reports';
+        $relativeDiskPath = $directory.'/'.$filename;
 
-        if (! is_dir($directory)) {
-            mkdir($directory, 0775, true);
+        if (! $disk->exists($directory)) {
+            $disk->makeDirectory($directory);
         }
 
-        $filePath = $directory.DIRECTORY_SEPARATOR.$filename;
+        $filePath = $disk->path($relativeDiskPath);
 
         if ($format === 'pdf') {
             $this->pdf->export(self::TYPES[$type], $rows, $filePath);
@@ -60,12 +63,13 @@ class ReportExportService
         }
 
         $relativePath = 'storage/reports/'.$filename;
+        $publicUrl = $disk->url($relativeDiskPath);
         $report = $this->reports->registerGeneratedReport(
             $user,
             $type,
             $filters,
             $format,
-            $relativePath
+            $publicUrl
         );
 
         return [
@@ -75,6 +79,7 @@ class ReportExportService
             'archivo' => [
                 'nombre' => $filename,
                 'ruta' => $relativePath,
+                'url' => $publicUrl,
                 'ruta_absoluta' => $filePath,
             ],
             'total_filas' => count($rows),

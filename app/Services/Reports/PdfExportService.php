@@ -25,7 +25,7 @@ class PdfExportService
     {
         $headers = $this->headers($rows);
         $body = $rows === []
-            ? '<tr><td colspan="1">Sin datos para el reporte.</td></tr>'
+            ? '<tr><td colspan="'.count($headers).'">Sin datos para el reporte.</td></tr>'
             : collect($rows)->map(function (array $row) use ($headers): string {
                 $cells = collect($headers)
                     ->map(fn (string $header): string => '<td>'.$this->escape((string) ($row[$header] ?? '')).'</td>')
@@ -35,7 +35,7 @@ class PdfExportService
             })->implode('');
 
         $head = collect($headers)
-            ->map(fn (string $header): string => '<th>'.$this->escape($header).'</th>')
+            ->map(fn (string $header): string => '<th>'.$this->escape($this->label($header)).'</th>')
             ->implode('');
 
         return '<!doctype html>
@@ -64,7 +64,23 @@ th, td { border: 1px solid #d1d5db; padding: 5px; vertical-align: top; }
 
     private function headers(array $rows): array
     {
-        return $rows === [] ? ['mensaje'] : array_keys($rows[0]);
+        if ($rows === []) {
+            return ['mensaje'];
+        }
+
+        return collect($rows)
+            ->flatMap(fn (array $row): array => array_keys($row))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function label(string $header): string
+    {
+        return str($header)
+            ->replace(['_', '.'], ' ')
+            ->headline()
+            ->toString();
     }
 
     private function escape(string $value): string

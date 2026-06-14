@@ -13,10 +13,10 @@ class ExcelExportService
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle(substr($this->sanitizeSheetTitle($title), 0, 31));
 
-        $headers = $rows === [] ? ['mensaje'] : array_keys($rows[0]);
+        $headers = $this->headers($rows);
 
         foreach ($headers as $index => $header) {
-            $sheet->setCellValue([$index + 1, 1], $header);
+            $sheet->setCellValue([$index + 1, 1], $this->label($header));
         }
 
         if ($rows === []) {
@@ -39,5 +39,26 @@ class ExcelExportService
     private function sanitizeSheetTitle(string $title): string
     {
         return preg_replace('/[\\\\\\/\\?\\*\\[\\]:]/', ' ', $title) ?: 'Reporte';
+    }
+
+    private function headers(array $rows): array
+    {
+        if ($rows === []) {
+            return ['mensaje'];
+        }
+
+        return collect($rows)
+            ->flatMap(fn (array $row): array => array_keys($row))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function label(string $header): string
+    {
+        return str($header)
+            ->replace(['_', '.'], ' ')
+            ->headline()
+            ->toString();
     }
 }

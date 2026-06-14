@@ -17,6 +17,8 @@ class AdminDashboardService
                 'total_grupos_habilitados' => $this->groupsQuery($filters)->where('activo', true)->count(),
             ],
             'pagos' => $this->paymentIndicators($filters),
+            'postulantes_por_estado' => $this->applicantsByStatus($filters),
+            'resultados' => $this->finalResults($filters),
         ];
     }
 
@@ -24,17 +26,35 @@ class AdminDashboardService
     {
         $payments = DB::table('pago_stripe')
             ->join('postulante', 'postulante.id', '=', 'pago_stripe.postulante_id')
-            ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('postulante.gestion_academica_id', (int) $id));
+            ->leftJoin('postulacion', 'postulacion.postulante_id', '=', 'postulante.id')
+            ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('postulante.gestion_academica_id', (int) $id))
+            ->when($filters['carrera_id'] ?? null, function ($query, int|string $id): void {
+                $query->where(function ($careerQuery) use ($id): void {
+                    $careerQuery->where('postulacion.primera_carrera_id', (int) $id)
+                        ->orWhere('postulacion.segunda_carrera_id', (int) $id)
+                        ->orWhere('postulacion.carrera_asignada_id', (int) $id);
+                });
+            });
+        $payments = $this->applyDateRange($payments, $filters, 'pago_stripe.creado_en');
 
         $readyApplicants = DB::table('postulante')
             ->join('pago_stripe', 'pago_stripe.postulante_id', '=', 'postulante.id')
+            ->leftJoin('postulacion', 'postulacion.postulante_id', '=', 'postulante.id')
             ->leftJoin('alumno', 'alumno.postulante_id', '=', 'postulante.id')
             ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('postulante.gestion_academica_id', (int) $id))
+            ->when($filters['carrera_id'] ?? null, function ($query, int|string $id): void {
+                $query->where(function ($careerQuery) use ($id): void {
+                    $careerQuery->where('postulacion.primera_carrera_id', (int) $id)
+                        ->orWhere('postulacion.segunda_carrera_id', (int) $id)
+                        ->orWhere('postulacion.carrera_asignada_id', (int) $id);
+                });
+            })
             ->where('postulante.estado_requisitos', 'aprobado')
             ->where('pago_stripe.estado_pago', 'pagado')
             ->whereNotNull('pago_stripe.validado_por_usuario_id')
             ->whereNotNull('pago_stripe.validado_en')
             ->whereNull('alumno.id');
+        $readyApplicants = $this->applyDateRange($readyApplicants, $filters, 'pago_stripe.creado_en');
 
         return [
             'total_pagos_pendientes' => (clone $payments)->where('pago_stripe.estado_pago', 'pendiente')->count(),
@@ -45,6 +65,12 @@ class AdminDashboardService
                 ->count(),
             'total_pagos_fallidos' => (clone $payments)->where('pago_stripe.estado_pago', 'fallido')->count(),
             'total_postulantes_listos_para_convertirse_en_alumnos' => $readyApplicants->count(),
+            'distribucion' => [
+                'pendiente' => (clone $payments)->where('pago_stripe.estado_pago', 'pendiente')->count(),
+                'pagado' => (clone $payments)->where('pago_stripe.estado_pago', 'pagado')->count(),
+                'rechazado' => (clone $payments)->where('pago_stripe.estado_pago', 'rechazado')->count(),
+                'fallido' => (clone $payments)->where('pago_stripe.estado_pago', 'fallido')->count(),
+            ],
         ];
     }
 
@@ -53,10 +79,12 @@ class AdminDashboardService
         $teacherAttendance = DB::table('asistencia_docente')
             ->join('horario_clase', 'horario_clase.id', '=', 'asistencia_docente.horario_clase_id')
             ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('horario_clase.gestion_academica_id', (int) $id));
+        $teacherAttendance = $this->applyDateRange($teacherAttendance, $filters, 'asistencia_docente.fecha');
 
         $studentAttendance = DB::table('asistencia_alumno')
             ->join('horario_clase', 'horario_clase.id', '=', 'asistencia_alumno.horario_clase_id')
             ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('horario_clase.gestion_academica_id', (int) $id));
+        $studentAttendance = $this->applyDateRange($studentAttendance, $filters, 'asistencia_alumno.fecha');
 
         return [
             'total_asistencias_docentes' => (clone $teacherAttendance)->where('asistencia_docente.estado_entrada', 'presente')->count(),
@@ -65,6 +93,16 @@ class AdminDashboardService
             'total_asistencias_alumnos' => (clone $studentAttendance)->where('asistencia_alumno.estado_asistencia', 'presente')->count(),
             'total_faltas_alumnos' => (clone $studentAttendance)->where('asistencia_alumno.estado_asistencia', 'falta')->count(),
             'total_retrasos_alumnos' => (clone $studentAttendance)->where('asistencia_alumno.estado_asistencia', 'retraso')->count(),
+            'docentes_por_estado' => [
+                'presente' => (clone $teacherAttendance)->where('asistencia_docente.estado_entrada', 'presente')->count(),
+                'retraso' => (clone $teacherAttendance)->where('asistencia_docente.estado_entrada', 'retraso')->count(),
+                'falta' => (clone $teacherAttendance)->where('asistencia_docente.estado_entrada', 'falta')->count(),
+            ],
+            'alumnos_por_estado' => [
+                'presente' => (clone $studentAttendance)->where('asistencia_alumno.estado_asistencia', 'presente')->count(),
+                'retraso' => (clone $studentAttendance)->where('asistencia_alumno.estado_asistencia', 'retraso')->count(),
+                'falta' => (clone $studentAttendance)->where('asistencia_alumno.estado_asistencia', 'falta')->count(),
+            ],
         ];
     }
 
@@ -82,6 +120,7 @@ class AdminDashboardService
                     ->whereColumn('postulante.gestion_academica_id', 'cupo_carrera.gestion_academica_id');
             })
             ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('cupo_carrera.gestion_academica_id', (int) $id))
+            ->when($filters['carrera_id'] ?? null, fn ($query, int|string $id) => $query->where('cupo_carrera.carrera_id', (int) $id))
             ->groupBy(
                 'cupo_carrera.id',
                 'cupo_carrera.cantidad_cupos',
@@ -134,17 +173,25 @@ class AdminDashboardService
     {
         $exams = DB::table('examen')
             ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('gestion_academica_id', (int) $id));
+        $exams = $this->applyDateRange($exams, $filters, 'creado_en');
 
         $enabledExamIds = (clone $exams)
             ->where('habilitado', true)
             ->pluck('id');
 
         $students = DB::table('alumno')
-            ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('gestion_academica_id', (int) $id));
+            ->leftJoin('postulacion', 'postulacion.postulante_id', '=', 'alumno.postulante_id')
+            ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('alumno.gestion_academica_id', (int) $id))
+            ->when($filters['carrera_id'] ?? null, fn ($query, int|string $id) => $query->where('postulacion.carrera_asignada_id', (int) $id));
 
         $studentsWhoTookExam = DB::table('intento_examen')
             ->join('examen', 'examen.id', '=', 'intento_examen.examen_id')
+            ->join('alumno', 'alumno.id', '=', 'intento_examen.alumno_id')
+            ->leftJoin('postulacion', 'postulacion.postulante_id', '=', 'alumno.postulante_id')
             ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('examen.gestion_academica_id', (int) $id))
+            ->when($filters['carrera_id'] ?? null, fn ($query, int|string $id) => $query->where('postulacion.carrera_asignada_id', (int) $id))
+            ->when($filters['fecha_desde'] ?? null, fn ($query, string $date) => $query->whereDate('intento_examen.creado_en', '>=', $date))
+            ->when($filters['fecha_hasta'] ?? null, fn ($query, string $date) => $query->whereDate('intento_examen.creado_en', '<=', $date))
             ->distinct('intento_examen.alumno_id')
             ->count('intento_examen.alumno_id');
 
@@ -168,25 +215,76 @@ class AdminDashboardService
             'examenes_habilitados' => (clone $exams)->where('habilitado', true)->count(),
             'alumnos_que_rindieron' => $studentsWhoTookExam,
             'alumnos_pendientes' => $studentsPending,
+            'distribucion' => [
+                'habilitados' => (clone $exams)->where('habilitado', true)->count(),
+                'deshabilitados' => (clone $exams)->where('habilitado', false)->count(),
+            ],
         ];
     }
 
     private function applicantsQuery(array $filters)
     {
         return DB::table('postulante')
-            ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('gestion_academica_id', (int) $id));
+            ->leftJoin('postulacion', 'postulacion.postulante_id', '=', 'postulante.id')
+            ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('postulante.gestion_academica_id', (int) $id))
+            ->when($filters['carrera_id'] ?? null, function ($query, int|string $id): void {
+                $query->where(function ($careerQuery) use ($id): void {
+                    $careerQuery->where('postulacion.primera_carrera_id', (int) $id)
+                        ->orWhere('postulacion.segunda_carrera_id', (int) $id)
+                        ->orWhere('postulacion.carrera_asignada_id', (int) $id);
+                });
+            })
+            ->when($filters['fecha_desde'] ?? null, fn ($query, string $date) => $query->whereDate('postulante.creado_en', '>=', $date))
+            ->when($filters['fecha_hasta'] ?? null, fn ($query, string $date) => $query->whereDate('postulante.creado_en', '<=', $date));
     }
 
     private function finalAveragesQuery(array $filters, string $status)
     {
         return DB::table('promedio_final')
-            ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('gestion_academica_id', (int) $id))
-            ->where('estado_final', $status);
+            ->join('alumno', 'alumno.id', '=', 'promedio_final.alumno_id')
+            ->leftJoin('postulacion', 'postulacion.postulante_id', '=', 'alumno.postulante_id')
+            ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('promedio_final.gestion_academica_id', (int) $id))
+            ->when($filters['carrera_id'] ?? null, fn ($query, int|string $id) => $query->where('postulacion.carrera_asignada_id', (int) $id))
+            ->when($filters['fecha_desde'] ?? null, fn ($query, string $date) => $query->whereDate('promedio_final.calculado_en', '>=', $date))
+            ->when($filters['fecha_hasta'] ?? null, fn ($query, string $date) => $query->whereDate('promedio_final.calculado_en', '<=', $date))
+            ->where('promedio_final.estado_final', $status);
     }
 
     private function groupsQuery(array $filters)
     {
         return DB::table('grupo')
             ->when($filters['gestion_academica_id'] ?? null, fn ($query, int|string $id) => $query->where('gestion_academica_id', (int) $id));
+    }
+
+    private function applicantsByStatus(array $filters): array
+    {
+        return $this->applicantsQuery($filters)
+            ->selectRaw('postulante.estado_postulante, COUNT(DISTINCT postulante.id) as total')
+            ->groupBy('postulante.estado_postulante')
+            ->pluck('total', 'estado_postulante')
+            ->map(fn ($total) => (int) $total)
+            ->all();
+    }
+
+    private function finalResults(array $filters): array
+    {
+        $approved = $this->finalAveragesQuery($filters, 'aprobado')->count();
+        $failed = $this->finalAveragesQuery($filters, 'reprobado')->count();
+        $total = $approved + $failed;
+
+        return [
+            'aprobados' => $approved,
+            'reprobados' => $failed,
+            'total' => $total,
+            'porcentaje_aprobacion' => $total > 0 ? round(($approved / $total) * 100, 2) : 0,
+            'porcentaje_reprobacion' => $total > 0 ? round(($failed / $total) * 100, 2) : 0,
+        ];
+    }
+
+    private function applyDateRange($query, array $filters, string $column)
+    {
+        return $query
+            ->when($filters['fecha_desde'] ?? null, fn ($innerQuery, string $date) => $innerQuery->whereDate($column, '>=', $date))
+            ->when($filters['fecha_hasta'] ?? null, fn ($innerQuery, string $date) => $innerQuery->whereDate($column, '<=', $date));
     }
 }
