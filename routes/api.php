@@ -209,6 +209,11 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/mis-asistencias', [StudentAttendanceController::class, 'myAttendance']);
     });
 
+    Route::middleware(['auth.internal', 'role:alumno'])->prefix('alumno')->group(function (): void {
+        Route::get('/grupos/opciones', [ClassroomGroupController::class, 'studentGroupOptions']);
+        Route::post('/grupo/asignacion', [ClassroomGroupController::class, 'assignStudentGroup']);
+    });
+
     Route::middleware(['auth.internal', 'role:alumno'])->prefix('alumno/examenes')->group(function (): void {
         Route::get('/habilitados', [StudentExamController::class, 'enabled']);
         Route::get('/{id}', [StudentExamController::class, 'show'])->whereNumber('id');

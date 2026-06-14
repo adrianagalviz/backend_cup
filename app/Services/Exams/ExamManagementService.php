@@ -297,7 +297,7 @@ class ExamManagementService
         }
 
         $this->ensureEverySubjectHasQuestion($exam);
-        $this->ensureQuestionsHaveValidOptions($exam->preguntas);
+        $this->ensureQuestionsHaveValidOptions($exam->preguntas->where('activa', true));
     }
 
     private function ensureEverySubjectHasQuestion(ExamenModel $exam): void
@@ -313,7 +313,13 @@ class ExamManagementService
             ->diff($questionSubjectIds);
 
         if ($missing->isNotEmpty()) {
-            throw new RuntimeException('Cada materia asociada debe tener al menos una pregunta activa.');
+            $subjects = $exam->materiasPorcentaje
+                ->whereIn('materia_id', $missing)
+                ->map(fn (ExamenMateriaPorcentajeModel $subject): string => $subject->materia?->nombre ?? 'Materia '.$subject->materia_id)
+                ->values()
+                ->implode(', ');
+
+            throw new RuntimeException('Cada materia asociada debe tener al menos una pregunta activa. Faltan preguntas para: '.$subjects.'.');
         }
     }
 

@@ -7,8 +7,10 @@ use App\Models\AulaModel;
 use App\Models\GrupoAlumnoModel;
 use App\Models\GrupoModel;
 use App\Models\MateriaModel;
+use App\Models\UsuarioModel;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -141,16 +143,20 @@ class ClassroomGroupService
             $assigned = [];
 
             foreach ($students as $student) {
-                DB::table('grupo_alumno')->updateOrInsert(
-                    [
-                        'grupo_id' => $group->id,
-                        'alumno_id' => $student->id,
-                    ],
-                    [
-                        'fecha_asignacion' => now(),
-                        'activo' => true,
-                    ]
-                );
+                try {
+                    DB::table('grupo_alumno')->updateOrInsert(
+                        [
+                            'grupo_id' => $group->id,
+                            'alumno_id' => $student->id,
+                        ],
+                        [
+                            'fecha_asignacion' => now(),
+                            'activo' => true,
+                        ]
+                    );
+                } catch (QueryException) {
+                    continue;
+                }
 
                 $assigned[] = $student->id;
             }
@@ -161,6 +167,86 @@ class ClassroomGroupService
                 'cantidad_asignada' => count($assigned),
                 'cupos_disponibles' => max(0, $availableSlots - count($assigned)),
             ];
+        });
+    }
+
+    public function studentGroupOptions(?UsuarioModel $user): array
+    {
+        $student = $this->authenticatedStudent($user);
+        $currentGroup = $this->activeStudentGroup($student);
+        $groups = $this->activeGroupsForStudentGestion($student);
+
+        if ($currentGroup) {
+            $status = 'asignado';
+        } elseif ($groups->count() === 1) {
+            $status = 'auto_asignable';
+        } elseif ($groups->count() > 1) {
+            $status = 'requiere_eleccion';
+        } else {
+            $status = 'sin_grupos';
+        }
+
+        return [
+            'estado' => $status,
+            'alumno' => [
+                'id' => $student->id,
+                'codigo_alumno' => $student->codigo_alumno,
+                'gestion_academica_id' => $student->gestion_academica_id,
+            ],
+            'gestion_academica' => [
+                'id' => $student->gestionAcademica?->id,
+                'anio' => $student->gestionAcademica?->anio,
+                'numero_gestion' => $student->gestionAcademica?->numero_gestion,
+                'nombre' => $student->gestionAcademica?->nombre,
+            ],
+            'grupo_actual' => $currentGroup ? $this->formatGroup($currentGroup->grupo) : null,
+            'grupos' => $groups->map(fn (GrupoModel $group) => $this->formatGroup($group))->values(),
+        ];
+    }
+
+    public function assignAuthenticatedStudentToGroup(?UsuarioModel $user, ?int $groupId = null): array
+    {
+        return DB::transaction(function () use ($user, $groupId): array {
+            $student = $this->authenticatedStudent($user);
+
+            if ($this->activeStudentGroup($student)) {
+                throw new RuntimeException('El alumno ya tiene un grupo asignado y no puede cambiarlo.');
+            }
+
+            $groups = $this->activeGroupsForStudentGestion($student);
+
+            if ($groupId === null) {
+                if ($groups->count() !== 1) {
+                    throw new RuntimeException('La asignacion automatica solo esta disponible cuando existe un unico grupo activo.');
+                }
+
+                $group = $groups->first();
+            } else {
+                if ($groups->count() <= 1) {
+                    throw new RuntimeException('La eleccion manual solo esta disponible cuando existe mas de un grupo activo.');
+                }
+
+                $group = $groups->firstWhere('id', $groupId);
+
+                if (! $group) {
+                    throw new RuntimeException('El grupo elegido no corresponde a la gestion academica del alumno o no esta activo.');
+                }
+            }
+
+            $this->ensureGroupHasAvailableSlots($group);
+
+            try {
+                DB::table('grupo_alumno')->insert([
+                    'grupo_id' => $group->id,
+                    'alumno_id' => $student->id,
+                    'fecha_asignacion' => now(),
+                    'activo' => true,
+                ]);
+            } catch (QueryException) {
+                throw new RuntimeException('El alumno ya tiene un grupo asignado y no puede cambiarlo.');
+            }
+
+            return $this->studentGroupOptions($user->refresh()->load(['rol', 'persona', 'alumno.gestionAcademica', 'alumno.grupos.grupo']));
         });
     }
 
@@ -307,6 +393,54 @@ class ClassroomGroupService
             ->whereDoesntHave('grupos', fn (Builder $query) => $query->where('activo', true))
             ->orderBy('id')
             ->get();
+    }
+
+    private function authenticatedStudent(?UsuarioModel $user): AlumnoModel
+    {
+        if (! $user instanceof UsuarioModel) {
+            throw new RuntimeException('Usuario autenticado requerido.');
+        }
+
+        $student = $user->alumno;
+
+        if (! $student instanceof AlumnoModel) {
+            throw new RuntimeException('El usuario autenticado no tiene un alumno asociado.');
+        }
+
+        return $student->loadMissing(['gestionAcademica', 'grupos.grupo']);
+    }
+
+    private function activeStudentGroup(AlumnoModel $student): ?GrupoAlumnoModel
+    {
+        return $student->grupos
+            ->first(fn (GrupoAlumnoModel $groupStudent): bool => (bool) $groupStudent->activo);
+    }
+
+    private function activeGroupsForStudentGestion(AlumnoModel $student): Collection
+    {
+        return GrupoModel::query()
+            ->with('gestionAcademica')
+            ->where('gestion_academica_id', $student->gestion_academica_id)
+            ->where('activo', true)
+            ->orderBy('nombre')
+            ->get();
+    }
+
+    private function ensureGroupHasAvailableSlots(GrupoModel $group): void
+    {
+        DB::table('grupo')
+            ->where('id', $group->id)
+            ->lockForUpdate()
+            ->first();
+
+        $currentCount = GrupoAlumnoModel::query()
+            ->where('grupo_id', $group->id)
+            ->where('activo', true)
+            ->count();
+
+        if ($currentCount >= (int) $group->cupo_maximo) {
+            throw new RuntimeException('El grupo ya alcanzo su cupo maximo.');
+        }
     }
 
     private function classroomLocation(string|int $classroom): string

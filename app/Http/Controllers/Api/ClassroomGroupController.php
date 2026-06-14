@@ -184,6 +184,39 @@ class ClassroomGroupController extends Controller
         return ApiResponse::success('Alumnos asignados al grupo correctamente.', $result);
     }
 
+    public function studentGroupOptions(Request $request): JsonResponse
+    {
+        try {
+            $result = $this->classrooms->studentGroupOptions($request->attributes->get('usuario_autenticado'));
+        } catch (RuntimeException $exception) {
+            return ApiResponse::error($exception->getMessage(), [], 422);
+        }
+
+        return ApiResponse::success('Opciones de grupo del alumno obtenidas correctamente.', $result);
+    }
+
+    public function assignStudentGroup(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'grupo_id' => ['nullable', 'integer', 'exists:grupo,id'],
+        ], $this->messages());
+
+        if ($validator->fails()) {
+            return ValidationHelper::failed($validator);
+        }
+
+        try {
+            $result = $this->classrooms->assignAuthenticatedStudentToGroup(
+                $request->attributes->get('usuario_autenticado'),
+                $validator->validated()['grupo_id'] ?? null
+            );
+        } catch (RuntimeException $exception) {
+            return ApiResponse::error($exception->getMessage(), [], 422);
+        }
+
+        return ApiResponse::success('Grupo asignado al alumno correctamente.', $result);
+    }
+
     public function listClassrooms(Request $request): JsonResponse
     {
         $validator = Validator::make($request->query(), [
