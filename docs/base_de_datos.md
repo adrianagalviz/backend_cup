@@ -637,7 +637,7 @@ Guardar las dos carreras obligatorias a las que postula el alumno y la carrera f
 CHECK (primera_carrera_id <> segunda_carrera_id)
 CHECK (promedio_final IS NULL OR (promedio_final >= 0 AND promedio_final <= 100))
 CHECK (estado_final IS NULL OR estado_final IN ('aprobado', 'reprobado'))
-CHECK (motivo_asignacion IS NULL OR motivo_asignacion IN ('primera_opcion', 'segunda_opcion', 'carrera_con_menos_personas'))
+CHECK (motivo_asignacion IS NULL OR motivo_asignacion IN ('primera_opcion', 'segunda_opcion'))
 ```
 
 ### Relaciones
@@ -1954,4 +1954,3 @@ Cubre:
 - Exportación a PDF y Excel.
 - Comandos de voz usando Web Speech API.
 - Cargas masivas mediante Excel o CSV.
-

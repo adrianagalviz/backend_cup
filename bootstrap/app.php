@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(\App\Http\Middleware\ForceJsonResponse::class);
         $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
+        $middleware->append(\App\Http\Middleware\RegisterAuditLog::class);
         $middleware->alias([
             'auth.internal' => \App\Http\Middleware\AuthenticateInternalToken::class,
             'role' => \App\Http\Middleware\AuthorizeRole::class,

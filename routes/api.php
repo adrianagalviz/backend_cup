@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AdmissionController;
 use App\Http\Controllers\Api\BulkLoadController;
 use App\Http\Controllers\Api\HealthController;
@@ -164,6 +165,7 @@ Route::prefix('v1')->group(function (): void {
 
         Route::post('/promedios/calcular', [GradeAverageController::class, 'calculate']);
 
+        Route::get('/admisiones/asignacion-final', [AdmissionController::class, 'assignmentSummary']);
         Route::post('/admisiones/asignar-carreras', [AdmissionController::class, 'assignCareers']);
 
         Route::get('/reportes/postulantes', [ReportController::class, 'applicants']);
@@ -189,6 +191,8 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/dashboard/asistencia', [DashboardController::class, 'attendance']);
         Route::get('/dashboard/cupos', [DashboardController::class, 'quotas']);
         Route::get('/dashboard/examenes', [DashboardController::class, 'exams']);
+
+        Route::get('/bitacora', [AuditLogController::class, 'index']);
     });
 
     Route::middleware(['auth.internal', 'role:administrador,docente'])

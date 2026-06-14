@@ -11,30 +11,22 @@ use Illuminate\Support\Facades\DB;
 
 class CareerAssignmentService
 {
+    public function summaryByGestion(int $gestionId): array
+    {
+        $approved = $this->approvedStudentsByPriority($gestionId);
+
+        return $this->buildSummary($gestionId, $approved);
+    }
+
     public function assignByGestion(int $gestionId, bool $reassign = false): array
     {
         return DB::transaction(function () use ($gestionId, $reassign): array {
             $approved = $this->approvedStudentsByPriority($gestionId);
 
-            if ($approved->isEmpty()) {
-                return [
-                    'gestion_academica_id' => $gestionId,
-                    'cantidad_aprobados' => 0,
-                    'cantidad_asignados' => 0,
-                    'cantidad_omitidos' => 0,
-                    'aprobados_ordenados' => [],
-                    'asignaciones' => [],
-                    'omitidos' => [],
-                    'cupos' => $this->quotaSummary($gestionId),
-                ];
-            }
-
             if ($reassign) {
                 $this->clearAssignments($gestionId);
             }
 
-            $assignments = [];
-            $skipped = [];
             $priority = 1;
 
             foreach ($approved as $average) {
@@ -45,19 +37,19 @@ class CareerAssignmentService
                     ->first();
 
                 if (! $application) {
-                    $skipped[] = $this->skip($student, 'El alumno no tiene postulacion registrada.');
+                    $priority++;
                     continue;
                 }
 
                 if ($application->carrera_asignada_id && ! $reassign) {
-                    $skipped[] = $this->skip($student, 'El alumno ya tiene carrera asignada.', $application);
+                    $priority++;
                     continue;
                 }
 
                 $decision = $this->selectCareer($application, $gestionId);
 
                 if (! $decision) {
-                    $skipped[] = $this->skip($student, 'No existen cupos disponibles para asignacion final.', $application);
+                    $priority++;
                     continue;
                 }
 
@@ -72,39 +64,12 @@ class CareerAssignmentService
                         'asignado_en' => now(),
                     ]);
 
-                $application = PostulacionModel::query()
-                    ->with(['primeraCarrera', 'segundaCarrera', 'carreraAsignada'])
-                    ->findOrFail($application->id);
-
-                $assignments[] = [
-                    'orden_prioridad' => $priority,
-                    'alumno' => $this->formatStudent($student),
-                    'promedio' => $average->promedio,
-                    'primera_opcion' => $this->formatCareer($application->primeraCarrera),
-                    'segunda_opcion' => $this->formatCareer($application->segundaCarrera),
-                    'carrera_asignada' => $this->formatCareer($application->carreraAsignada),
-                    'motivo_asignacion' => $application->motivo_asignacion,
-                ];
-
                 $priority++;
             }
 
             return [
-                'gestion_academica_id' => $gestionId,
+                ...$this->buildSummary($gestionId, $approved),
                 'reasignado' => $reassign,
-                'cantidad_aprobados' => $approved->count(),
-                'cantidad_asignados' => count($assignments),
-                'cantidad_omitidos' => count($skipped),
-                'aprobados_ordenados' => $approved
-                    ->map(fn (PromedioFinalModel $average) => [
-                        'alumno' => $this->formatStudent($average->alumno),
-                        'promedio' => $average->promedio,
-                        'estado_final' => $average->estado_final,
-                    ])
-                    ->values(),
-                'asignaciones' => $assignments,
-                'omitidos' => $skipped,
-                'cupos' => $this->quotaSummary($gestionId),
             ];
         });
     }
@@ -136,16 +101,16 @@ class CareerAssignmentService
             ];
         }
 
-        $leastOccupied = $this->leastOccupiedCareerWithQuota($gestionId);
+        return null;
+    }
 
-        if (! $leastOccupied) {
-            return null;
-        }
-
-        return [
-            'carrera_id' => $leastOccupied['carrera_id'],
-            'motivo' => 'carrera_con_menos_personas',
-        ];
+    private function occupiedCount(int $careerId, int $gestionId): int
+    {
+        return DB::table('postulacion')
+            ->join('postulante', 'postulante.id', '=', 'postulacion.postulante_id')
+            ->where('postulante.gestion_academica_id', $gestionId)
+            ->where('postulacion.carrera_asignada_id', $careerId)
+            ->count();
     }
 
     private function hasAvailableQuota(int $careerId, int $gestionId): bool
@@ -162,40 +127,77 @@ class CareerAssignmentService
         return $this->occupiedCount($careerId, $gestionId) < (int) $quota->cantidad_cupos;
     }
 
-    private function leastOccupiedCareerWithQuota(int $gestionId): ?array
+    private function buildSummary(int $gestionId, Collection $approved): array
     {
-        return collect(DB::table('cupo_carrera')
-            ->join('carrera', 'carrera.id', '=', 'cupo_carrera.carrera_id')
-            ->where('cupo_carrera.gestion_academica_id', $gestionId)
-            ->where('carrera.activa', true)
-            ->select('cupo_carrera.carrera_id', 'cupo_carrera.cantidad_cupos', 'carrera.nombre')
-            ->get())
-            ->map(function ($quota) use ($gestionId): array {
-                $occupied = $this->occupiedCount((int) $quota->carrera_id, $gestionId);
+        $applicationsByStudent = $this->applicationsByStudent($approved);
+
+        $approvedList = $approved
+            ->map(function (PromedioFinalModel $average, int $index) use ($applicationsByStudent): array {
+                $application = $applicationsByStudent->get($average->alumno->postulante_id);
 
                 return [
-                    'carrera_id' => (int) $quota->carrera_id,
-                    'nombre' => $quota->nombre,
-                    'cantidad_cupos' => (int) $quota->cantidad_cupos,
-                    'ocupados' => $occupied,
-                    'disponibles' => max(0, (int) $quota->cantidad_cupos - $occupied),
+                    'orden_prioridad' => $application?->orden_prioridad ?: $index + 1,
+                    'alumno' => $this->formatStudent($average->alumno),
+                    'promedio' => $average->promedio,
+                    'estado_final' => $average->estado_final,
+                    'primera_opcion' => $this->formatCareer($application?->primeraCarrera),
+                    'segunda_opcion' => $this->formatCareer($application?->segundaCarrera),
+                    'carrera_asignada' => $this->formatCareer($application?->carreraAsignada),
+                    'motivo_asignacion' => $application?->motivo_asignacion,
+                    'asignado_en' => $application?->asignado_en,
                 ];
             })
-            ->filter(fn (array $quota): bool => $quota['disponibles'] > 0)
-            ->sortBy([
-                ['ocupados', 'asc'],
-                ['carrera_id', 'asc'],
-            ])
-            ->first();
+            ->values();
+
+        $assignments = $approvedList
+            ->filter(fn (array $item): bool => $item['carrera_asignada'] !== null)
+            ->values();
+
+        $skipped = $approved
+            ->filter(function (PromedioFinalModel $average) use ($applicationsByStudent, $gestionId): bool {
+                $application = $applicationsByStudent->get($average->alumno->postulante_id);
+
+                return ! $application
+                    || (! $application->carrera_asignada_id && ! $this->hasAvailableQuota($application->primera_carrera_id, $gestionId) && ! $this->hasAvailableQuota($application->segunda_carrera_id, $gestionId));
+            })
+            ->map(function (PromedioFinalModel $average) use ($applicationsByStudent): array {
+                $application = $applicationsByStudent->get($average->alumno->postulante_id);
+                $message = $application
+                    ? 'Primera y segunda opcion sin cupo disponible.'
+                    : 'El alumno no tiene postulacion registrada.';
+
+                return $this->skip($average->alumno, $message, $application);
+            })
+            ->values();
+
+        return [
+            'gestion_academica_id' => $gestionId,
+            'cantidad_aprobados' => $approved->count(),
+            'cantidad_asignados' => $assignments->count(),
+            'cantidad_omitidos' => $skipped->count(),
+            'aprobados_ordenados' => $approvedList,
+            'asignaciones' => $assignments,
+            'omitidos' => $skipped,
+            'cupos' => $this->quotaSummary($gestionId),
+        ];
     }
 
-    private function occupiedCount(int $careerId, int $gestionId): int
+    private function applicationsByStudent(Collection $approved): Collection
     {
-        return DB::table('postulacion')
-            ->join('postulante', 'postulante.id', '=', 'postulacion.postulante_id')
-            ->where('postulante.gestion_academica_id', $gestionId)
-            ->where('postulacion.carrera_asignada_id', $careerId)
-            ->count();
+        $postulanteIds = $approved
+            ->pluck('alumno.postulante_id')
+            ->filter()
+            ->values();
+
+        if ($postulanteIds->isEmpty()) {
+            return collect();
+        }
+
+        return PostulacionModel::query()
+            ->with(['primeraCarrera', 'segundaCarrera', 'carreraAsignada'])
+            ->whereIn('postulante_id', $postulanteIds)
+            ->get()
+            ->keyBy('postulante_id');
     }
 
     private function quotaSummary(int $gestionId): Collection

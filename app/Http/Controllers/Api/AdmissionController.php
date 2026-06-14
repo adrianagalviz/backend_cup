@@ -17,15 +17,30 @@ class AdmissionController extends Controller
     ) {
     }
 
+    public function assignmentSummary(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->query(), [
+            'gestion_academica_id' => ['required', 'integer', 'exists:gestion_academica,id'],
+        ], $this->messages());
+
+        if ($validator->fails()) {
+            return ValidationHelper::failed($validator);
+        }
+
+        $data = $validator->validated();
+
+        return ApiResponse::success(
+            'Asignacion final de carreras obtenida correctamente.',
+            $this->assignments->summaryByGestion((int) $data['gestion_academica_id'])
+        );
+    }
+
     public function assignCareers(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
             'gestion_academica_id' => ['required', 'integer', 'exists:gestion_academica,id'],
             'reasignar' => ['nullable', 'boolean'],
-        ], [
-            'gestion_academica_id.required' => 'La gestion academica es obligatoria.',
-            'gestion_academica_id.exists' => 'La gestion academica indicada no existe.',
-        ]);
+        ], $this->messages());
 
         if ($validator->fails()) {
             return ValidationHelper::failed($validator);
@@ -38,5 +53,13 @@ class AdmissionController extends Controller
         );
 
         return ApiResponse::success('Asignacion final de carreras procesada correctamente.', $result);
+    }
+
+    private function messages(): array
+    {
+        return [
+            'gestion_academica_id.required' => 'La gestion academica es obligatoria.',
+            'gestion_academica_id.exists' => 'La gestion academica indicada no existe.',
+        ];
     }
 }

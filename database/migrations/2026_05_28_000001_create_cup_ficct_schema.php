@@ -483,7 +483,7 @@ return new class extends Migration
             'ALTER TABLE postulacion ADD CONSTRAINT postulacion_carreras_distintas_check CHECK (primera_carrera_id <> segunda_carrera_id)',
             'ALTER TABLE postulacion ADD CONSTRAINT postulacion_promedio_final_check CHECK (promedio_final IS NULL OR (promedio_final >= 0 AND promedio_final <= 100))',
             "ALTER TABLE postulacion ADD CONSTRAINT postulacion_estado_final_check CHECK (estado_final IS NULL OR estado_final IN ('aprobado', 'reprobado'))",
-            "ALTER TABLE postulacion ADD CONSTRAINT postulacion_motivo_check CHECK (motivo_asignacion IS NULL OR motivo_asignacion IN ('primera_opcion', 'segunda_opcion', 'carrera_con_menos_personas'))",
+            "ALTER TABLE postulacion ADD CONSTRAINT postulacion_motivo_check CHECK (motivo_asignacion IS NULL OR motivo_asignacion IN ('primera_opcion', 'segunda_opcion'))",
             "ALTER TABLE alumno ADD CONSTRAINT alumno_estado_academico_check CHECK (estado_academico IN ('activo', 'aprobado', 'reprobado'))",
             'ALTER TABLE grupo ADD CONSTRAINT grupo_cupo_maximo_check CHECK (cupo_maximo > 0 AND cupo_maximo <= 70)',
             'ALTER TABLE periodo ADD CONSTRAINT periodo_duracion_check CHECK (duracion_minutos = 45)',

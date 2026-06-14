@@ -7,7 +7,7 @@ Se implementaron las subfases 20.1 a 20.5:
 - 20.1 Obtener alumnos aprobados por gestion.
 - 20.2 Asignar primera opcion si tiene cupo.
 - 20.3 Asignar segunda opcion si la primera esta llena.
-- 20.4 Asignar carrera con menos personas si ambas opciones estan llenas.
+- 20.4 Omitir al alumno si primera y segunda opcion estan llenas.
 - 20.5 Endpoint administrativo para ejecutar la asignacion completa.
 
 ## Endpoint
@@ -15,6 +15,7 @@ Se implementaron las subfases 20.1 a 20.5:
 Solo administrador:
 
 ```text
+GET /api/v1/admisiones/asignacion-final
 POST /api/v1/admisiones/asignar-carreras
 ```
 
@@ -48,13 +49,13 @@ cupo_carrera
 4. Ante empate, se ordena por `alumno_id`.
 5. Primero se intenta asignar `primera_carrera_id`.
 6. Si no hay cupo, se intenta `segunda_carrera_id`.
-7. Si ambas opciones no tienen cupo, se busca la carrera activa con menos personas asignadas y cupo disponible.
+7. Si ambas opciones no tienen cupo, el alumno queda omitido.
 8. Los cupos ocupados se calculan desde `postulacion.carrera_asignada_id`.
 9. El resultado se guarda en `postulacion.carrera_asignada_id`.
-10. El motivo se guarda como `primera_opcion`, `segunda_opcion` o `carrera_con_menos_personas`.
+10. El motivo se guarda como `primera_opcion` o `segunda_opcion`.
 11. Se guarda `orden_prioridad` segun el orden por nota.
 12. Se actualiza `asignado_en`.
-13. Si no hay cupos disponibles, el alumno queda omitido en el resumen.
+13. Si no hay cupos disponibles en sus dos opciones, el alumno queda omitido en el resumen.
 14. Si `reasignar = false`, no se toca una postulacion ya asignada.
 15. Si `reasignar = true`, se limpian asignaciones aprobadas de esa gestion y se recalcula el proceso.
 

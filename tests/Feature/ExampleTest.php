@@ -947,6 +947,17 @@ class ExampleTest extends TestCase
         ]);
     }
 
+    public function test_career_assignment_summary_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/admisiones/asignacion-final?gestion_academica_id=1');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
     public function test_applicants_report_requires_authentication_token(): void
     {
         $response = $this->getJson('/api/v1/reportes/postulantes');
@@ -1117,6 +1128,17 @@ class ExampleTest extends TestCase
     public function test_bulk_load_detail_requires_authentication_token(): void
     {
         $response = $this->getJson('/api/v1/cargas/1/detalle');
+
+        $response->assertStatus(401);
+        $response->assertJson([
+            'ok' => false,
+            'mensaje' => 'Token de autenticacion requerido.',
+        ]);
+    }
+
+    public function test_audit_log_requires_authentication_token(): void
+    {
+        $response = $this->getJson('/api/v1/bitacora');
 
         $response->assertStatus(401);
         $response->assertJson([
