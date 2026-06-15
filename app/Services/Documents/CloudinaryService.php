@@ -10,10 +10,30 @@ class CloudinaryService
 {
     public function uploadImage(UploadedFile $file, string $publicId): array
     {
+        return $this->upload($file, $publicId, config('cloudinary.folder'), 'image', 'No se pudo subir la imagen a Cloudinary.');
+    }
+
+    public function uploadRawFile(UploadedFile $file, string $publicId, string $folder): array
+    {
+        return $this->upload($file, $publicId, $folder, 'raw', 'No se pudo subir el archivo a Cloudinary.');
+    }
+
+    private function signature(array $params, string $apiSecret): string
+    {
+        ksort($params);
+
+        $payload = collect($params)
+            ->map(fn ($value, string $key): string => "{$key}={$value}")
+            ->implode('&');
+
+        return sha1($payload.$apiSecret);
+    }
+
+    private function upload(UploadedFile $file, string $publicId, string $folder, string $resourceType, string $errorMessage): array
+    {
         $cloudName = config('cloudinary.cloud_name');
         $apiKey = config('cloudinary.api_key');
         $apiSecret = config('cloudinary.api_secret');
-        $folder = config('cloudinary.folder');
 
         if (! $cloudName || ! $apiKey || ! $apiSecret) {
             throw new RuntimeException('Cloudinary no esta configurado correctamente.');
@@ -28,7 +48,7 @@ class CloudinaryService
 
         $response = Http::asMultipart()
             ->attach('file', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
-            ->post("https://api.cloudinary.com/v1_1/{$cloudName}/image/upload", [
+            ->post("https://api.cloudinary.com/v1_1/{$cloudName}/{$resourceType}/upload", [
                 'api_key' => $apiKey,
                 'timestamp' => (string) $timestamp,
                 'folder' => $folder,
@@ -37,7 +57,7 @@ class CloudinaryService
             ]);
 
         if (! $response->successful()) {
-            throw new RuntimeException('No se pudo subir la imagen a Cloudinary.');
+            throw new RuntimeException($errorMessage);
         }
 
         $data = $response->json();
@@ -51,16 +71,5 @@ class CloudinaryService
             'secure_url' => $data['secure_url'],
             'format' => $data['format'] ?? $file->extension(),
         ];
-    }
-
-    private function signature(array $params, string $apiSecret): string
-    {
-        ksort($params);
-
-        $payload = collect($params)
-            ->map(fn ($value, string $key): string => "{$key}={$value}")
-            ->implode('&');
-
-        return sha1($payload.$apiSecret);
     }
 }

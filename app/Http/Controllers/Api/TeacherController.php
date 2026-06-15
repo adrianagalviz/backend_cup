@@ -104,6 +104,8 @@ class TeacherController extends Controller
             $teacher = $this->teachers->updateTeacher($id, $validator->validated());
         } catch (ModelNotFoundException) {
             return ApiResponse::error('Docente no encontrado.', [], 404);
+        } catch (RuntimeException $exception) {
+            return ApiResponse::error($exception->getMessage(), [], 422);
         }
 
         return ApiResponse::success('Docente actualizado correctamente.', [
@@ -122,6 +124,38 @@ class TeacherController extends Controller
         return ApiResponse::success('Docente desactivado correctamente.', [
             'docente' => $this->teachers->formatTeacher($teacher, true),
         ]);
+    }
+
+    public function cv(Request $request, int $id)
+    {
+        try {
+            $teacher = $this->teachers->findTeacher($id);
+        } catch (ModelNotFoundException) {
+            return ApiResponse::error('Docente no encontrado.', [], 404);
+        }
+
+        if (! $teacher->cv_pdf_cloudinary_url) {
+            return ApiResponse::error('El docente no tiene PDF de CV registrado.', [], 404);
+        }
+
+        $fileName = $teacher->cv_pdf_nombre_original ?: 'cv-docente-'.$teacher->id.'.pdf';
+        $url = $request->boolean('descargar')
+            ? $this->cloudinaryAttachmentUrl($teacher->cv_pdf_cloudinary_url, $fileName)
+            : $teacher->cv_pdf_cloudinary_url;
+
+        return redirect()->away($url);
+    }
+
+    private function cloudinaryAttachmentUrl(string $url, string $fileName): string
+    {
+        if (! str_contains($url, '/upload/')) {
+            return $url;
+        }
+
+        $downloadName = pathinfo($fileName, PATHINFO_FILENAME) ?: 'cv-docente';
+        $downloadName = preg_replace('/[^A-Za-z0-9_-]+/', '_', $downloadName) ?: 'cv-docente';
+
+        return str_replace('/upload/', "/upload/fl_attachment:{$downloadName}/", $url);
     }
 
     private function storeRules(): array
@@ -144,6 +178,7 @@ class TeacherController extends Controller
             'nombre_usuario' => ['nullable', 'string', 'max:100', 'unique:usuario,nombre_usuario'],
             'password' => ['nullable', 'string', 'min:8'],
             'correo_verificado' => ['nullable', 'boolean'],
+            'cv_pdf' => ['nullable', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:10240'],
         ];
     }
 
@@ -172,6 +207,7 @@ class TeacherController extends Controller
             'nombre_usuario' => ['sometimes', 'string', 'max:100', Rule::unique('usuario', 'nombre_usuario')->ignore($usuarioId)],
             'password' => ['sometimes', 'string', 'min:8'],
             'correo_verificado' => ['sometimes', 'boolean'],
+            'cv_pdf' => ['nullable', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:10240'],
         ];
     }
 
@@ -195,6 +231,10 @@ class TeacherController extends Controller
             'tiene_diplomado_educacion_superior.accepted' => 'El docente debe tener diplomado en educacion superior.',
             'nombre_usuario.unique' => 'El nombre de usuario ya esta registrado.',
             'password.min' => 'La contrasena debe tener al menos 8 caracteres.',
+            'cv_pdf.file' => 'El CV debe ser un archivo valido.',
+            'cv_pdf.mimes' => 'El CV debe ser un archivo PDF.',
+            'cv_pdf.mimetypes' => 'El CV debe ser un archivo PDF.',
+            'cv_pdf.max' => 'El PDF del CV no debe superar 10 MB.',
         ];
     }
 }

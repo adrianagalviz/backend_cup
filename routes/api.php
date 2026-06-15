@@ -104,6 +104,7 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/docentes', [TeacherController::class, 'store']);
         Route::get('/docentes/buscar', [TeacherController::class, 'search']);
         Route::get('/docentes/{id}', [TeacherController::class, 'show'])->whereNumber('id');
+        Route::get('/docentes/{id}/cv', [TeacherController::class, 'cv'])->whereNumber('id');
         Route::put('/docentes/{id}', [TeacherController::class, 'update'])->whereNumber('id');
         Route::delete('/docentes/{id}', [TeacherController::class, 'destroy'])->whereNumber('id');
 

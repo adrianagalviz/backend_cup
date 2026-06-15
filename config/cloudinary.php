@@ -5,4 +5,5 @@ return [
     'api_key' => env('CLOUDINARY_API_KEY'),
     'api_secret' => env('CLOUDINARY_API_SECRET'),
     'folder' => env('CLOUDINARY_FOLDER', 'cup-ficct/postulantes/titulos-bachiller'),
+    'teachers_cv_folder' => env('CLOUDINARY_TEACHERS_CV_FOLDER', 'cup-ficct/docentes/cv'),
 ];

@@ -2,18 +2,28 @@
 
 namespace App\Services\Teachers;
 
+use App\Services\Documents\CloudinaryService;
 use App\Models\DocenteModel;
 use App\Models\UsuarioModel;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 class TeacherManagementService
 {
+    public function __construct(
+        private readonly CloudinaryService $cloudinary,
+    ) {
+    }
+
     public function createTeacher(array $data, UsuarioModel $creator): DocenteModel
     {
         return DB::transaction(function () use ($data, $creator): DocenteModel {
+            $cvPdf = $data['cv_pdf'] ?? null;
+            unset($data['cv_pdf']);
+
             $teacherRoleId = DB::table('rol')->where('nombre', 'docente')->where('activo', true)->value('id');
 
             if (! $teacherRoleId) {
@@ -60,6 +70,10 @@ class TeacherManagementService
                 'creado_en' => now(),
             ]);
 
+            if ($cvPdf instanceof UploadedFile) {
+                $this->storeCvPdf($teacherId, $cvPdf);
+            }
+
             return $this->findTeacher($teacherId);
         });
     }
@@ -105,6 +119,9 @@ class TeacherManagementService
     public function updateTeacher(int $id, array $data): DocenteModel
     {
         return DB::transaction(function () use ($id, $data): DocenteModel {
+            $cvPdf = $data['cv_pdf'] ?? null;
+            unset($data['cv_pdf']);
+
             $teacher = $this->findTeacher($id);
 
             $personData = array_intersect_key($data, array_flip([
@@ -157,6 +174,10 @@ class TeacherManagementService
             if ($userData !== [] && $teacher->usuario_id) {
                 $userData['actualizado_en'] = now();
                 DB::table('usuario')->where('id', $teacher->usuario_id)->update($userData);
+            }
+
+            if ($cvPdf instanceof UploadedFile) {
+                $this->storeCvPdf($teacher->id, $cvPdf);
             }
 
             return $this->findTeacher($id);
@@ -264,6 +285,11 @@ class TeacherManagementService
             'es_profesional_area' => $teacher->es_profesional_area,
             'tiene_maestria' => $teacher->tiene_maestria,
             'tiene_diplomado_educacion_superior' => $teacher->tiene_diplomado_educacion_superior,
+            'cv_pdf' => [
+                'tiene_pdf' => filled($teacher->cv_pdf_cloudinary_url),
+                'nombre_original' => $teacher->cv_pdf_nombre_original,
+                'url' => $teacher->cv_pdf_cloudinary_url,
+            ],
             'persona' => [
                 'id' => $teacher->persona?->id,
                 'cedula_identidad' => $teacher->persona?->cedula_identidad,
@@ -294,5 +320,18 @@ class TeacherManagementService
         }
 
         return $data;
+    }
+
+    private function storeCvPdf(int $teacherId, UploadedFile $file): void
+    {
+        $publicId = 'docente_'.$teacherId.'_cv_'.now()->format('YmdHis').'.pdf';
+        $cloudinary = $this->cloudinary->uploadRawFile($file, $publicId, config('cloudinary.teachers_cv_folder'));
+
+        DB::table('docente')->where('id', $teacherId)->update([
+            'cv_pdf_cloudinary_public_id' => $cloudinary['public_id'],
+            'cv_pdf_cloudinary_url' => $cloudinary['secure_url'],
+            'cv_pdf_nombre_original' => $file->getClientOriginalName(),
+            'actualizado_en' => now(),
+        ]);
     }
 }
