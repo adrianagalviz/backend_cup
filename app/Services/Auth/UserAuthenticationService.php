@@ -16,7 +16,7 @@ class UserAuthenticationService
     public function findByIdentifier(string $identifier): ?UsuarioModel
     {
         return UsuarioModel::query()
-            ->with(['rol', 'persona', 'administrador', 'docente', 'alumno'])
+            ->with(['rol', 'persona', 'administrador', 'docente.materiaProfesional', 'alumno'])
             ->where('nombre_usuario', $identifier)
             ->orWhere('codigo_acceso', $identifier)
             ->orWhereHas('persona', function ($query) use ($identifier): void {
@@ -91,7 +91,7 @@ class UserAuthenticationService
             $usuario->save();
         }
 
-        return $this->authenticatedResponse($usuario->refresh()->load(['rol', 'persona', 'administrador', 'docente', 'alumno']));
+        return $this->authenticatedResponse($usuario->refresh()->load(['rol', 'persona', 'administrador', 'docente.materiaProfesional', 'alumno']));
     }
 
     private function authenticatedResponse(UsuarioModel $usuario): array

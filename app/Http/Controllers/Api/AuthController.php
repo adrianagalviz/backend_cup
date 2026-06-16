@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
 use RuntimeException;
+use Throwable;
 
 class AuthController extends Controller
 {
@@ -198,6 +199,8 @@ class AuthController extends Controller
             $teacher = $this->teachers->uploadCvPdf($usuario->docente->id, $request->file('cv_pdf'));
         } catch (RuntimeException $exception) {
             return ApiResponse::error($exception->getMessage(), [], 422);
+        } catch (Throwable) {
+            return ApiResponse::error('No se pudo subir el CV a Cloudinary. Verifica tu conexion e intenta nuevamente.', [], 422);
         }
 
         return ApiResponse::success('CV del docente subido correctamente.', [

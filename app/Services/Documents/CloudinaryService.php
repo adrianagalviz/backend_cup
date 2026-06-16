@@ -3,8 +3,10 @@
 namespace App\Services\Documents;
 
 use Illuminate\Http\UploadedFile;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
+use Throwable;
 
 class CloudinaryService
 {
@@ -46,15 +48,27 @@ class CloudinaryService
             'timestamp' => $timestamp,
         ];
 
-        $response = Http::asMultipart()
-            ->attach('file', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
-            ->post("https://api.cloudinary.com/v1_1/{$cloudName}/{$resourceType}/upload", [
-                'api_key' => $apiKey,
-                'timestamp' => (string) $timestamp,
-                'folder' => $folder,
-                'public_id' => $publicId,
-                'signature' => $this->signature($params, $apiSecret),
-            ]);
+        try {
+            $response = Http::timeout(90)
+                ->connectTimeout(30)
+                ->retry(2, 1500, throw: true)
+                ->withOptions([
+                    'force_ip_resolve' => 'v4',
+                ])
+                ->asMultipart()
+                ->attach('file', file_get_contents($file->getRealPath()), $file->getClientOriginalName())
+                ->post("https://api.cloudinary.com/v1_1/{$cloudName}/{$resourceType}/upload", [
+                    'api_key' => $apiKey,
+                    'timestamp' => (string) $timestamp,
+                    'folder' => $folder,
+                    'public_id' => $publicId,
+                    'signature' => $this->signature($params, $apiSecret),
+                ]);
+        } catch (ConnectionException) {
+            throw new RuntimeException('No se pudo conectar con Cloudinary. Verifica tu conexion a internet e intenta nuevamente.');
+        } catch (Throwable) {
+            throw new RuntimeException($errorMessage);
+        }
 
         if (! $response->successful()) {
             throw new RuntimeException($errorMessage);

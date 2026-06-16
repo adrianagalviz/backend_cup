@@ -31,7 +31,7 @@ class AuthenticateInternalToken
         }
 
         $usuario = UsuarioModel::query()
-            ->with(['rol', 'persona', 'administrador', 'docente', 'alumno'])
+            ->with(['rol', 'persona', 'administrador', 'docente.materiaProfesional', 'alumno'])
             ->find($userId);
 
         if (!$usuario || !$usuario->activo) {

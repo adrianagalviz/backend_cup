@@ -63,6 +63,7 @@ class TeacherManagementService
                 'persona_id' => $personaId,
                 'usuario_id' => $usuarioId,
                 'es_profesional_area' => true,
+                'materia_profesional_id' => $data['materia_profesional_id'] ?? null,
                 'tiene_maestria' => true,
                 'tiene_diplomado_educacion_superior' => true,
                 'contratado' => true,
@@ -81,7 +82,7 @@ class TeacherManagementService
     public function listTeachers(array $filters): LengthAwarePaginator
     {
         return DocenteModel::query()
-            ->with(['persona', 'usuario.rol'])
+            ->with(['persona', 'usuario.rol', 'materiaProfesional'])
             ->when(array_key_exists('activo', $filters), function (Builder $query) use ($filters): void {
                 $query->where('activo', filter_var($filters['activo'], FILTER_VALIDATE_BOOLEAN));
             })
@@ -112,7 +113,7 @@ class TeacherManagementService
     public function findTeacher(int $id): DocenteModel
     {
         return DocenteModel::query()
-            ->with(['persona', 'usuario.rol'])
+            ->with(['persona', 'usuario.rol', 'materiaProfesional'])
             ->findOrFail($id);
     }
 
@@ -145,6 +146,7 @@ class TeacherManagementService
 
             $teacherData = array_intersect_key($data, array_flip([
                 'es_profesional_area',
+                'materia_profesional_id',
                 'tiene_maestria',
                 'tiene_diplomado_educacion_superior',
                 'activo',
@@ -285,6 +287,10 @@ class TeacherManagementService
             'es_profesional_area' => $teacher->es_profesional_area,
             'tiene_maestria' => $teacher->tiene_maestria,
             'tiene_diplomado_educacion_superior' => $teacher->tiene_diplomado_educacion_superior,
+            'materia_profesional' => $teacher->materiaProfesional ? [
+                'id' => $teacher->materiaProfesional->id,
+                'nombre' => $teacher->materiaProfesional->nombre,
+            ] : null,
             'cv_pdf' => [
                 'tiene_pdf' => filled($teacher->cv_pdf_cloudinary_url),
                 'nombre_original' => $teacher->cv_pdf_nombre_original,
