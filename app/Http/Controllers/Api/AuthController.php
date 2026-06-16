@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\UsuarioModel;
 use App\Services\Auth\InternalTokenService;
 use App\Services\Auth\UserAuthenticationService;
+use App\Services\Teachers\TeacherManagementService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly UserAuthenticationService $auth,
         private readonly InternalTokenService $tokens,
+        private readonly TeacherManagementService $teachers,
     ) {
     }
 
@@ -166,6 +168,43 @@ class AuthController extends Controller
         ]);
     }
 
+    public function subirCvDocente(Request $request): JsonResponse
+    {
+        $usuario = $request->attributes->get('usuario_autenticado');
+
+        if (!$usuario instanceof UsuarioModel) {
+            return ApiResponse::error('Usuario autenticado requerido.', [], 401);
+        }
+
+        if (!$usuario->docente) {
+            return ApiResponse::error('No tienes permisos para subir el CV de docente.', [], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'cv_pdf' => ['required', 'file', 'mimes:pdf', 'mimetypes:application/pdf', 'max:10240'],
+        ], [
+            'cv_pdf.required' => 'El PDF del CV es obligatorio.',
+            'cv_pdf.file' => 'El CV debe ser un archivo valido.',
+            'cv_pdf.mimes' => 'El CV debe ser un archivo PDF.',
+            'cv_pdf.mimetypes' => 'El CV debe ser un archivo PDF.',
+            'cv_pdf.max' => 'El PDF del CV no debe superar 10 MB.',
+        ]);
+
+        if ($validator->fails()) {
+            return ValidationHelper::failed($validator);
+        }
+
+        try {
+            $teacher = $this->teachers->uploadCvPdf($usuario->docente->id, $request->file('cv_pdf'));
+        } catch (RuntimeException $exception) {
+            return ApiResponse::error($exception->getMessage(), [], 422);
+        }
+
+        return ApiResponse::success('CV del docente subido correctamente.', [
+            'docente' => $this->teachers->formatTeacher($teacher),
+        ]);
+    }
+
     private function roleSpecificData(UsuarioModel $usuario): array
     {
         return match ($usuario->rol?->nombre) {
@@ -173,7 +212,7 @@ class AuthController extends Controller
                 'administrador' => $usuario->administrador,
             ],
             'docente' => [
-                'docente' => $usuario->docente,
+                'docente' => $usuario->docente ? $this->teachers->formatTeacher($usuario->docente) : null,
             ],
             'alumno' => [
                 'alumno' => $usuario->alumno,

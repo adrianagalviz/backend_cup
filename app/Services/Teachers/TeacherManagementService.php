@@ -322,6 +322,14 @@ class TeacherManagementService
         return $data;
     }
 
+    public function uploadCvPdf(int $teacherId, UploadedFile $file): DocenteModel
+    {
+        $this->findTeacher($teacherId);
+        $this->storeCvPdf($teacherId, $file);
+
+        return $this->findTeacher($teacherId);
+    }
+
     private function storeCvPdf(int $teacherId, UploadedFile $file): void
     {
         $publicId = 'docente_'.$teacherId.'_cv_'.now()->format('YmdHis').'.pdf';

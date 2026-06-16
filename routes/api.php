@@ -40,6 +40,7 @@ Route::prefix('v1')->group(function (): void {
         Route::middleware('auth.internal')->group(function (): void {
             Route::post('/logout', [AuthController::class, 'logout']);
             Route::get('/perfil', [AuthController::class, 'perfil']);
+            Route::post('/perfil/docente/cv', [AuthController::class, 'subirCvDocente']);
             Route::patch('/configuracion-visual', [AuthController::class, 'actualizarConfiguracionVisual']);
         });
     });
