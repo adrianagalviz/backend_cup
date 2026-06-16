@@ -202,11 +202,11 @@ Route::prefix('v1')->group(function (): void {
         ->get('/horarios/docente/{id}', [ClassScheduleController::class, 'teacherSchedules'])
         ->whereNumber('id');
 
-    Route::middleware(['auth.internal', 'role:administrador,alumno'])
+    Route::middleware(['auth.internal', 'role:administrador,alumno', 'student.payment'])
         ->get('/horarios/alumno/{id}', [ClassScheduleController::class, 'studentSchedules'])
         ->whereNumber('id');
 
-    Route::middleware(['auth.internal', 'role:administrador,alumno'])->group(function (): void {
+    Route::middleware(['auth.internal', 'role:administrador,alumno', 'student.payment'])->group(function (): void {
         Route::get('/notas/alumno/{id}', [GradeAverageController::class, 'notesByStudent'])->whereNumber('id');
         Route::get('/promedios', [GradeAverageController::class, 'averages']);
         Route::get('/promedios/aprobados', [GradeAverageController::class, 'approved']);
@@ -219,18 +219,18 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/marcar-salida', [TeacherAttendanceController::class, 'markExit']);
     });
 
-    Route::middleware(['auth.internal', 'role:alumno'])->prefix('asistencia-alumno')->group(function (): void {
+    Route::middleware(['auth.internal', 'role:alumno', 'student.payment'])->prefix('asistencia-alumno')->group(function (): void {
         Route::get('/horario-activo', [StudentAttendanceController::class, 'activeSchedule']);
         Route::post('/marcar', [StudentAttendanceController::class, 'mark']);
         Route::get('/mis-asistencias', [StudentAttendanceController::class, 'myAttendance']);
     });
 
-    Route::middleware(['auth.internal', 'role:alumno'])->prefix('alumno')->group(function (): void {
+    Route::middleware(['auth.internal', 'role:alumno', 'student.payment'])->prefix('alumno')->group(function (): void {
         Route::get('/grupos/opciones', [ClassroomGroupController::class, 'studentGroupOptions']);
         Route::post('/grupo/asignacion', [ClassroomGroupController::class, 'assignStudentGroup']);
     });
 
-    Route::middleware(['auth.internal', 'role:alumno'])->prefix('alumno/examenes')->group(function (): void {
+    Route::middleware(['auth.internal', 'role:alumno', 'student.payment'])->prefix('alumno/examenes')->group(function (): void {
         Route::get('/habilitados', [StudentExamController::class, 'enabled']);
         Route::get('/{id}', [StudentExamController::class, 'show'])->whereNumber('id');
         Route::post('/{id}/responder', [StudentExamController::class, 'answer'])->whereNumber('id');

@@ -19,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'auth.internal' => \App\Http\Middleware\AuthenticateInternalToken::class,
             'role' => \App\Http\Middleware\AuthorizeRole::class,
+            'student.payment' => \App\Http\Middleware\EnsureStudentPaymentCompleted::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

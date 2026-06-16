@@ -3,7 +3,6 @@
 namespace App\Services\Students;
 
 use App\Models\AlumnoModel;
-use App\Models\PagoStripeModel;
 use App\Models\PostulanteModel;
 use App\Models\UsuarioModel;
 use Illuminate\Support\Facades\DB;
@@ -64,18 +63,6 @@ class ApplicantConversionService
     {
         if ($postulante->estado_requisitos !== 'aprobado') {
             throw new RuntimeException('El postulante debe tener requisitos aprobados.');
-        }
-
-        $payment = PagoStripeModel::query()
-            ->where('postulante_id', $postulante->id)
-            ->first();
-
-        if (! $payment || $payment->estado_pago !== 'pagado') {
-            throw new RuntimeException('El postulante debe tener pago Stripe confirmado.');
-        }
-
-        if (! $payment->validado_por_usuario_id || ! $payment->validado_en) {
-            throw new RuntimeException('El pago debe estar validado por un administrador.');
         }
 
         if (AlumnoModel::query()->where('postulante_id', $postulante->id)->exists()) {

@@ -2,7 +2,6 @@
 
 namespace App\Services\Payments;
 
-use App\Models\AlumnoModel;
 use App\Models\PagoStripeModel;
 use App\Models\PostulanteModel;
 use App\Models\UsuarioModel;
@@ -26,10 +25,6 @@ class PaymentService
 
             if ($postulante->estado_requisitos !== 'aprobado') {
                 throw new RuntimeException('El postulante debe tener requisitos aprobados antes de iniciar el pago.');
-            }
-
-            if (AlumnoModel::query()->where('postulante_id', $postulante->id)->exists()) {
-                throw new RuntimeException('El postulante ya fue convertido en alumno.');
             }
 
             $existingPayment = PagoStripeModel::query()
@@ -70,7 +65,7 @@ class PaymentService
                 ->where('id', $postulante->id)
                 ->update([
                     'estado_pago' => 'pendiente',
-                    'estado_postulante' => 'pendiente_pago',
+                    'estado_postulante' => $this->applicantStateOr($postulante, 'pendiente_pago'),
                     'actualizado_en' => now(),
                 ]);
 
@@ -85,10 +80,6 @@ class PaymentService
     {
         return DB::transaction(function () use ($postulanteId): PagoStripeModel {
             $postulante = PostulanteModel::query()->findOrFail($postulanteId);
-
-            if (AlumnoModel::query()->where('postulante_id', $postulante->id)->exists()) {
-                throw new RuntimeException('El postulante ya fue convertido en alumno.');
-            }
 
             $existingPayment = PagoStripeModel::query()
                 ->where('postulante_id', $postulante->id)
@@ -128,7 +119,7 @@ class PaymentService
                 ->where('id', $postulante->id)
                 ->update([
                     'estado_pago' => 'pagado',
-                    'estado_postulante' => 'pagado',
+                    'estado_postulante' => $this->paidApplicantState($postulante),
                     'actualizado_en' => now(),
                 ]);
 
@@ -194,7 +185,9 @@ class PaymentService
             ->where('id', $payment->postulante_id)
             ->update([
                 'estado_pago' => $newStatus === 'pagado' ? 'pagado' : 'rechazado',
-                'estado_postulante' => $newStatus === 'pagado' ? 'pagado' : 'rechazado',
+                'estado_postulante' => $newStatus === 'pagado'
+                    ? $this->paidApplicantState($payment->postulante)
+                    : $this->applicantStateOr($payment->postulante, 'rechazado'),
                 'actualizado_en' => now(),
             ]);
 
@@ -252,10 +245,8 @@ class PaymentService
             'estado_pago' => $postulante->estado_pago,
             'estado_postulante' => $postulante->estado_postulante,
             'puede_pagar' => $postulante->estado_requisitos === 'aprobado'
-                && ! $payments->contains(fn (PagoStripeModel $payment) => $payment->estado_pago === 'pagado')
-                && ! AlumnoModel::query()->where('postulante_id', $postulante->id)->exists(),
-            'puede_pagar_temporal' => ! $payments->contains(fn (PagoStripeModel $payment) => $payment->estado_pago === 'pagado')
-                && ! AlumnoModel::query()->where('postulante_id', $postulante->id)->exists(),
+                && ! $payments->contains(fn (PagoStripeModel $payment) => $payment->estado_pago === 'pagado'),
+            'puede_pagar_temporal' => ! $payments->contains(fn (PagoStripeModel $payment) => $payment->estado_pago === 'pagado'),
             'existe_pago_pagado' => $payments->contains(fn (PagoStripeModel $payment) => $payment->estado_pago === 'pagado'),
             'existe_pago_validado_admin' => $payments->contains(fn (PagoStripeModel $payment) => $payment->validado_por_usuario_id !== null && $payment->validado_en !== null),
             'pagos' => $payments->map(fn (PagoStripeModel $payment): array => [
@@ -291,7 +282,7 @@ class PaymentService
                 ->where('id', $payment->postulante_id)
                 ->update([
                     'estado_pago' => 'pagado',
-                    'estado_postulante' => 'pagado',
+                    'estado_postulante' => $this->paidApplicantState($payment->postulante),
                     'actualizado_en' => now(),
                 ]);
 
@@ -335,5 +326,19 @@ class PaymentService
                 ] : null,
             ] : null,
         ];
+    }
+
+    private function paidApplicantState(?PostulanteModel $postulante): string
+    {
+        return $postulante?->estado_postulante === 'habilitado_alumno'
+            ? 'habilitado_alumno'
+            : 'pagado';
+    }
+
+    private function applicantStateOr(?PostulanteModel $postulante, string $fallback): string
+    {
+        return $postulante?->estado_postulante === 'habilitado_alumno'
+            ? 'habilitado_alumno'
+            : $fallback;
     }
 }

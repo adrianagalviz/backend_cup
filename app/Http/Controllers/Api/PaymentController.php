@@ -25,7 +25,7 @@ class PaymentController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'postulante_id' => ['required', 'integer', 'exists:postulante,id'],
-            'monto' => ['required', 'numeric', 'min:1'],
+            'monto' => ['nullable', 'numeric', 'min:1'],
             'moneda' => ['nullable', 'string', 'max:10'],
             'success_url' => ['nullable', 'url'],
             'cancel_url' => ['nullable', 'url'],
@@ -36,6 +36,7 @@ class PaymentController extends Controller
         }
 
         $data = $validator->validated();
+        $data['monto'] = (float) config('stripe.payment_amount', 250.00);
         $data['moneda'] = strtoupper($data['moneda'] ?? config('stripe.currency', 'BOB'));
 
         try {

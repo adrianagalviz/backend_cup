@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Helpers\ValidationHelper;
 use App\Http\Controllers\Controller;
+use App\Models\PagoStripeModel;
 use App\Models\UsuarioModel;
 use App\Services\Auth\InternalTokenService;
 use App\Services\Auth\UserAuthenticationService;
@@ -218,10 +219,62 @@ class AuthController extends Controller
                 'docente' => $usuario->docente ? $this->teachers->formatTeacher($usuario->docente) : null,
             ],
             'alumno' => [
-                'alumno' => $usuario->alumno,
+                'alumno' => $this->studentProfileData($usuario),
             ],
             default => [],
         };
+    }
+
+    private function studentProfileData(UsuarioModel $usuario): ?array
+    {
+        $student = $usuario->alumno;
+
+        if (! $student) {
+            return null;
+        }
+
+        $student->loadMissing(['postulante', 'gestionAcademica']);
+        $postulante = $student->postulante;
+        $payment = $postulante
+            ? PagoStripeModel::query()
+                ->where('postulante_id', $postulante->id)
+                ->orderByDesc('id')
+                ->first()
+            : null;
+
+        return [
+            'id' => $student->id,
+            'persona_id' => $student->persona_id,
+            'usuario_id' => $student->usuario_id,
+            'postulante_id' => $student->postulante_id,
+            'gestion_academica_id' => $student->gestion_academica_id,
+            'codigo_alumno' => $student->codigo_alumno,
+            'estado_academico' => $student->estado_academico,
+            'creado_en' => $student->creado_en,
+            'accesos_habilitados' => $postulante?->estado_pago === 'pagado',
+            'postulante' => $postulante ? [
+                'id' => $postulante->id,
+                'estado_requisitos' => $postulante->estado_requisitos,
+                'estado_pago' => $postulante->estado_pago,
+                'estado_postulante' => $postulante->estado_postulante,
+            ] : null,
+            'pago' => $payment ? [
+                'id' => $payment->id,
+                'monto' => $payment->monto,
+                'moneda' => $payment->moneda,
+                'estado_pago' => $payment->estado_pago,
+                'fecha_pago' => $payment->fecha_pago,
+                'validado_admin' => $payment->validado_por_usuario_id !== null && $payment->validado_en !== null,
+                'validado_en' => $payment->validado_en,
+                'creado_en' => $payment->creado_en,
+            ] : null,
+            'gestion_academica' => $student->gestionAcademica ? [
+                'id' => $student->gestionAcademica->id,
+                'anio' => $student->gestionAcademica->anio,
+                'numero_gestion' => $student->gestionAcademica->numero_gestion,
+                'nombre' => $student->gestionAcademica->nombre,
+            ] : null,
+        ];
     }
 
     private function visualConfig(UsuarioModel $usuario): array

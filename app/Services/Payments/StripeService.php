@@ -32,8 +32,8 @@ class StripeService
             'metadata' => [
                 'postulante_id' => (string) $data['postulante_id'],
             ],
-            'success_url' => $data['success_url'] ?? config('stripe.success_url'),
-            'cancel_url' => $data['cancel_url'] ?? config('stripe.cancel_url'),
+            'success_url' => $this->urlWithApplicantId($data['success_url'] ?? config('stripe.success_url'), (int) $data['postulante_id']),
+            'cancel_url' => $this->urlWithApplicantId($data['cancel_url'] ?? config('stripe.cancel_url'), (int) $data['postulante_id']),
         ]);
     }
 
@@ -70,5 +70,13 @@ class StripeService
     private function amountInMinorUnits(float $amount): int
     {
         return (int) round($amount * 100);
+    }
+
+    private function urlWithApplicantId(?string $url, int $postulanteId): string
+    {
+        $baseUrl = $url ?: config('stripe.success_url');
+        $separator = str_contains($baseUrl, '?') ? '&' : '?';
+
+        return $baseUrl.$separator.'postulante_id='.$postulanteId;
     }
 }
